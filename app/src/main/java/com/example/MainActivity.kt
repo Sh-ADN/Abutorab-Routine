@@ -80,15 +80,15 @@ fun RoutineApp(viewModel: RoutineViewModel, modifier: Modifier = Modifier) {
             horizontalArrangement = Arrangement.Center
         ) {
             FilterChip(
-                selected = searchMode == SearchMode.BY_CLASS,
-                onClick = { viewModel.setMode(SearchMode.BY_CLASS) },
-                label = { Text("By Class") },
+                selected = searchMode == SearchMode.BY_TEACHER,
+                onClick = { viewModel.setMode(SearchMode.BY_TEACHER) },
+                label = { Text("By Teacher") },
                 modifier = Modifier.padding(end = 8.dp)
             )
             FilterChip(
-                selected = searchMode == SearchMode.BY_TEACHER,
-                onClick = { viewModel.setMode(SearchMode.BY_TEACHER) },
-                label = { Text("By Teacher") }
+                selected = searchMode == SearchMode.BY_CLASS,
+                onClick = { viewModel.setMode(SearchMode.BY_CLASS) },
+                label = { Text("By Class") }
             )
         }
 
@@ -258,13 +258,13 @@ fun RoutineTableWrapper(
 
             Box(
                 modifier = Modifier
-                    .graphicsLayer(
-                        scaleX = scale,
-                        scaleY = scale,
-                        translationX = offset.x,
-                        translationY = offset.y,
+                    .graphicsLayer {
+                        scaleX = scale
+                        scaleY = scale
+                        translationX = offset.x
+                        translationY = offset.y
                         transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0f)
-                    )
+                    }
                     .wrapContentSize(unbounded = true, align = Alignment.TopStart)
             ) {
                 RoutineTable(
@@ -313,6 +313,14 @@ fun RoutineTable(
         return currentMin in startMin..endMin
     }
 
+    fun getRemainingMins(timeStr: String): Int {
+        val range = timeStr.split("-")
+        if (range.size != 2) return 0
+        val endMin = parseToMinutes(range[1])
+        val currentMin = currentTime.get(Calendar.HOUR_OF_DAY) * 60 + currentTime.get(Calendar.MINUTE)
+        return maxOf(0, endMin - currentMin)
+    }
+
     fun isDayActive(dayValue: Int): Boolean {
         // Calendar.SUNDAY is 1, Calendar.MONDAY is 2. 
         // Our data uses 2 for Sunday, 3 for Monday
@@ -320,7 +328,7 @@ fun RoutineTable(
     }
 
     val borderColor = MaterialTheme.colorScheme.outlineVariant
-    val days = listOf(2 to "Sun", 3 to "Mon", 4 to "Tue", 5 to "Wed", 6 to "Thu")
+    val days = listOf(2 to "Sunday", 3 to "Monday", 4 to "Tuesday", 5 to "Wednesday", 6 to "Thursday")
     
     data class PeriodHeader(val num: Int, val name: String, val time: String)
     val periods = listOf(
@@ -343,14 +351,14 @@ fun RoutineTable(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .background(Color(0xFF34495E))
         ) {
-            HeaderCell("Day", 80.dp)
+            HeaderCell("Day", 100.dp)
             periods.forEach { p ->
                 if (p.num == -1) {
                     HeaderCell("Break", 50.dp, isTiffin = true, isActive = isPeriodActive(p.time)) 
                 } else {
-                    HeaderCell("${p.name}\n${p.time}", 110.dp, isActive = isPeriodActive(p.time))
+                    HeaderCell(p.name, 110.dp, isActive = isPeriodActive(p.time))
                 }
             }
         }
@@ -359,20 +367,23 @@ fun RoutineTable(
             // Days Column
             Column {
                 days.forEach { (dayValue, dayStr) ->
-                    Cell(dayStr, 80.dp, isDark = true, height = 80.dp, isActive = isDayActive(dayValue))
+                    Cell(dayStr, 100.dp, isDark = true, height = 80.dp, isActive = isDayActive(dayValue))
                 }
             }
 
             periods.forEach { p ->
                 if (p.num == -1) {
-                    TiffinBreakCell(50.dp, 80.dp * 5, isActive = isPeriodActive(p.time))
+                    val activePeriod = isPeriodActive(p.time)
+                    val remMins = if (activePeriod) getRemainingMins(p.time) else null
+                    TiffinBreakCell(50.dp, 80.dp * 5, isActive = activePeriod, remainingMins = remMins)
                 } else {
                     Column {
                         val activePeriod = isPeriodActive(p.time)
                         days.forEach { (dayValue, _) ->
                             val text = getCellText(entries, dayValue, p.num, mode, query)
                             val activeCell = activePeriod && isDayActive(dayValue)
-                            Cell(text, 110.dp, isDark = false, height = 80.dp, isActive = activeCell)
+                            val remMins = if (activeCell) getRemainingMins(p.time) else null
+                            Cell(text, 110.dp, isDark = false, height = 80.dp, isActive = activeCell, remainingMins = remMins)
                         }
                     }
                 }
@@ -383,80 +394,135 @@ fun RoutineTable(
 
 @Composable
 fun HeaderCell(text: String, width: androidx.compose.ui.unit.Dp, isTiffin: Boolean = false, isActive: Boolean = false) {
-    val baseColor = if (isTiffin) Color(0xFFFFCCAA) else MaterialTheme.colorScheme.onSurfaceVariant
-    val highlightBg = MaterialTheme.colorScheme.primaryContainer
-    
     val backgroundColor = when {
-        isActive && !isTiffin -> highlightBg
-        isActive && isTiffin -> Color(0xFFFFB74D)
-        isTiffin -> Color(0xFFFFE0B2) // Added a solid background for tiffin
-        else -> MaterialTheme.colorScheme.surfaceVariant // Added a solid background
+        isActive && !isTiffin -> Color(0xFF3498DB) // Blue highlight for active period
+        isTiffin -> Color(0xFFE74C3C) // Red for break
+        else -> Color(0xFF34495E) // Dark blue default
     }
+    val textColor = Color.White
     
     Box(
         modifier = Modifier
             .width(width)
             .height(56.dp)
             .background(backgroundColor)
-            .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
+            .border(if (isActive && !isTiffin) 1.5.dp else 0.5.dp, if (isActive && !isTiffin) Color(0xFF2980B9) else Color(0xFFE0E0E0)),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = text,
             fontWeight = FontWeight.Bold,
-            color = if (isActive && !isTiffin) MaterialTheme.colorScheme.onPrimaryContainer else if (isTiffin) Color(0xFFD84315) else baseColor,
+            color = textColor,
             textAlign = TextAlign.Center,
-            style = MaterialTheme.typography.labelSmall
+            style = MaterialTheme.typography.titleMedium,
+            maxLines = 1,
+            softWrap = false
         )
     }
 }
 
 @Composable
-fun Cell(text: String, width: androidx.compose.ui.unit.Dp, isDark: Boolean, height: androidx.compose.ui.unit.Dp = 80.dp, isActive: Boolean = false) {
-    val highlightBg = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-    val baseBg = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent
-    val backgroundColor = if (isActive) highlightBg else baseBg
+fun Cell(text: String, width: androidx.compose.ui.unit.Dp, isDark: Boolean, height: androidx.compose.ui.unit.Dp = 80.dp, isActive: Boolean = false, remainingMins: Int? = null) {
+    val backgroundColor = when {
+        isDark && isActive -> Color(0xFFEAF2F8) // Highlight day
+        isActive -> Color(0xFFEAF2F8) // Highlight cell
+        isDark -> Color(0xFFF9F9F9) // Day column matches content background in image
+        else -> Color(0xFFF9F9F9) // Standard content background
+    }
 
     Box(
         modifier = Modifier
             .width(width)
             .height(height)
             .background(backgroundColor)
-            .border(if (isActive) 1.5.dp else 0.5.dp, if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant)
-            .padding(4.dp),
+            .border(if (isActive) 1.5.dp else 0.5.dp, if (isActive) Color(0xFF3498DB) else Color(0xFFE0E0E0))
+            .padding(2.dp),
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = text,
-            textAlign = TextAlign.Center,
-            style = MaterialTheme.typography.bodySmall,
-            fontWeight = if (isDark || isActive) FontWeight.Bold else FontWeight.Normal,
-            color = if (isActive && !isDark) MaterialTheme.colorScheme.onSurface else Color.Unspecified,
-            lineHeight = 16.sp
-        )
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            if (text.isNotBlank()) {
+                Text(
+                    text = text,
+                    textAlign = TextAlign.Center,
+                    style = if (isDark) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyMedium,
+                    fontWeight = if (isDark || isActive) FontWeight.Bold else FontWeight.Medium,
+                    color = if (isActive) Color(0xFF2980B9) else Color(0xFF333333),
+                    lineHeight = 16.sp,
+                    maxLines = if (isDark) 1 else Int.MAX_VALUE,
+                    softWrap = !isDark
+                )
+                if (remainingMins != null && !isDark) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "$remainingMins min left",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFFE74C3C),
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            } else {
+                Text(
+                    text = "-",
+                    textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color(0xFF666666)
+                )
+                if (remainingMins != null && !isDark) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "$remainingMins min left",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFFE74C3C),
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        }
     }
 }
 
 @Composable
-fun TiffinBreakCell(width: androidx.compose.ui.unit.Dp, totalHeight: androidx.compose.ui.unit.Dp, isActive: Boolean = false) {
+fun TiffinBreakCell(width: androidx.compose.ui.unit.Dp, totalHeight: androidx.compose.ui.unit.Dp, isActive: Boolean = false, remainingMins: Int? = null) {
     Box(
         modifier = Modifier
             .width(width)
             .height(totalHeight)
-            .background(if (isActive) Color(0xFFFFCC80) else Color(0xFFFFF3E0))
-            .border(if (isActive) 1.5.dp else 0.5.dp, if (isActive) Color(0xFFE65100) else MaterialTheme.colorScheme.outlineVariant),
+            .background(if (isActive) Color(0xFFFFD1AA) else Color(0xFFFFF0E6))
+            .border(if (isActive) 1.5.dp else 0.5.dp, if (isActive) Color(0xFFE65100) else Color(0xFFE0E0E0)),
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = "TIFFIN BREAK",
-            color = Color(0xFFE65100),
-            fontWeight = FontWeight.ExtraBold,
-            style = MaterialTheme.typography.labelSmall,
-            letterSpacing = 2.sp,
-            modifier = Modifier.rotate(-90f),
-            maxLines = 1,
-            softWrap = false
-        )
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            if (isActive && remainingMins != null) {
+                Text(
+                    text = "$remainingMins m",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color(0xFFD84315),
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+            }
+            Text(
+                text = "T I F F I N   B R E A K",
+                color = Color(0xFFC06030),
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleMedium,
+                letterSpacing = 2.sp,
+                modifier = Modifier
+                    .requiredWidth(totalHeight - if (isActive && remainingMins != null) 40.dp else 0.dp)
+                    .rotate(-90f),
+                maxLines = 1,
+                softWrap = false,
+                textAlign = TextAlign.Center
+            )
+        }
     }
 }
 

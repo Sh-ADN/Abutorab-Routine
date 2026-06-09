@@ -27,7 +27,7 @@ class RoutineViewModel(application: Application) : AndroidViewModel(application)
     private val _uiState = MutableStateFlow<RoutineUiState>(RoutineUiState.Loading)
     val uiState: StateFlow<RoutineUiState> = _uiState.asStateFlow()
 
-    private val _searchMode = MutableStateFlow(SearchMode.BY_CLASS)
+    private val _searchMode = MutableStateFlow(SearchMode.BY_TEACHER)
     val searchMode = _searchMode.asStateFlow()
 
     private val _selectedQuery = MutableStateFlow<String?>(null)
