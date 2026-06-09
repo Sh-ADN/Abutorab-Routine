@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.draw.clipToBounds
 import com.example.data.RoutineEntry
@@ -199,61 +200,82 @@ fun RoutineTableWrapper(
     var scale by remember { mutableFloatStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
     var initialSetupDone by remember { mutableStateOf(false) }
+    var tableSize by remember { mutableStateOf(androidx.compose.ui.unit.IntSize.Zero) }
 
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
             .clipToBounds()
-            .pointerInput(Unit) {
-                detectTransformGestures { centroid, pan, zoom, _ ->
-                    val oldScale = scale
-                    scale = (scale * zoom).coerceIn(0.25f, 4f)
-                    
-                    // Keep the focus on the pinched point
-                    val fraction = (scale / oldScale) - 1
-                    val zoomOffset = (centroid - offset) * fraction
-                    
-                    offset = offset + pan - zoomOffset
-                }
-            }
     ) {
-        val availableWidth = maxWidth
-        val desiredWidthDp = 900.dp
-
-        if (!initialSetupDone && availableWidth.value > 0) {
-            val ratio = if (availableWidth < desiredWidthDp) {
-                (availableWidth.value / desiredWidthDp.value)
-            } else {
-                1f
-            }
-            scale = ratio
-            // Center initially
-            val scaledWidth = desiredWidthDp.value * scale
-            if (scaledWidth < availableWidth.value) {
-                offset = Offset((availableWidth.value - scaledWidth) / 2f, 0f)
-            }
-            initialSetupDone = true
-        }
-
+        val availableWidthScope = maxWidth
+        val availableHeightScope = maxHeight
+        val availableWidthPx = constraints.maxWidth.toFloat()
+        val availableHeightPx = constraints.maxHeight.toFloat()
+        
         Box(
             modifier = Modifier
-                .graphicsLayer(
-                    scaleX = scale,
-                    scaleY = scale,
-                    translationX = offset.x,
-                    translationY = offset.y,
-                    transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0f)
-                )
-                .wrapContentSize(unbounded = true, align = Alignment.TopStart)
+                .fillMaxWidth()
+                .pointerInput(tableSize, availableWidthPx, availableHeightPx) {
+                    detectTransformGestures { centroid, pan, zoom, _ ->
+                        val oldScale = scale
+                        scale = (scale * zoom).coerceIn(0.25f, 4f)
+                        
+                        // Keep the focus on the pinched point
+                        val fraction = (scale / oldScale) - 1
+                        val zoomOffset = (centroid - offset) * fraction
+                        
+                        val proposedX = offset.x + pan.x - zoomOffset.x
+                        val proposedY = offset.y + pan.y - zoomOffset.y
+                        
+                        val contentWidth = tableSize.width * scale
+                        val contentHeight = tableSize.height * scale
+                        
+                        val minX = minOf(0f, availableWidthPx - contentWidth)
+                        val maxX = 0f
+                        val minY = minOf(0f, availableHeightPx - contentHeight)
+                        val maxY = 0f
+
+                        offset = Offset(
+                            proposedX.coerceIn(minX, maxX),
+                            proposedY.coerceIn(minY, maxY)
+                        )
+                    }
+                }
         ) {
-            RoutineTable(
-                entries = entries,
-                mode = mode,
-                query = query,
-                modifier = Modifier.requiredWidth(desiredWidthDp),
-                viewportOffset = offset,
-                viewportScale = scale
-            )
+            val desiredWidthDp = 900.dp
+
+            if (!initialSetupDone && availableWidthScope.value > 0) {
+                val ratio = if (availableWidthScope < desiredWidthDp) {
+                    (availableWidthScope.value / desiredWidthDp.value)
+                } else {
+                    1f
+                }
+                scale = ratio
+                // Start at top left initially
+                offset = Offset.Zero
+                initialSetupDone = true
+            }
+
+            Box(
+                modifier = Modifier
+                    .graphicsLayer(
+                        scaleX = scale,
+                        scaleY = scale,
+                        translationX = offset.x,
+                        translationY = offset.y,
+                        transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0f)
+                    )
+                    .wrapContentSize(unbounded = true, align = Alignment.TopStart)
+            ) {
+                RoutineTable(
+                    entries = entries,
+                    mode = mode,
+                    query = query,
+                    modifier = Modifier
+                        .requiredWidth(desiredWidthDp)
+                        .onSizeChanged { tableSize = it }
+                )
+            }
         }
     }
 }
@@ -263,9 +285,7 @@ fun RoutineTable(
     entries: List<RoutineEntry>,
     mode: SearchMode,
     query: String,
-    modifier: Modifier = Modifier,
-    viewportOffset: Offset = Offset.Zero,
-    viewportScale: Float = 1f
+    modifier: Modifier = Modifier
 ) {
     var currentTime by remember { mutableStateOf(Calendar.getInstance()) }
     LaunchedEffect(Unit) {
@@ -322,22 +342,10 @@ fun RoutineTable(
     ) {
         Row(
             modifier = Modifier
-                .zIndex(2f)
-                .graphicsLayer {
-                    translationY = if (viewportOffset.y < 0) -viewportOffset.y / viewportScale else 0f
-                }
                 .fillMaxWidth()
                 .background(MaterialTheme.colorScheme.surfaceVariant)
         ) {
-            Box(
-                modifier = Modifier
-                    .zIndex(3f)
-                    .graphicsLayer {
-                        translationX = if (viewportOffset.x < 0) -viewportOffset.x / viewportScale else 0f
-                    }
-            ) {
-                HeaderCell("Day", 80.dp)
-            }
+            HeaderCell("Day", 80.dp)
             periods.forEach { p ->
                 if (p.num == -1) {
                     HeaderCell("Break", 50.dp, isTiffin = true, isActive = isPeriodActive(p.time)) 
@@ -349,13 +357,7 @@ fun RoutineTable(
 
         Row(modifier = Modifier.fillMaxWidth()) {
             // Days Column
-            Column(
-                modifier = Modifier
-                    .zIndex(2f)
-                    .graphicsLayer {
-                        translationX = if (viewportOffset.x < 0) -viewportOffset.x / viewportScale else 0f
-                    }
-            ) {
+            Column {
                 days.forEach { (dayValue, dayStr) ->
                     Cell(dayStr, 80.dp, isDark = true, height = 80.dp, isActive = isDayActive(dayValue))
                 }
