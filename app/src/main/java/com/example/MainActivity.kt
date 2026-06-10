@@ -351,21 +351,29 @@ fun RoutineApp(
                                             )
                                             Spacer(modifier = Modifier.height(8.dp))
                                             androidx.compose.foundation.layout.FlowRow(
-                                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                                verticalArrangement = Arrangement.spacedBy(10.dp)
                                             ) {
-                                                freeTeachers.forEachIndexed { i, teacher ->
-                                                    Text(
-                                                        text = teacher + if (i < freeTeachers.size - 1) "," else "",
-                                                        style = MaterialTheme.typography.titleLarge,
-                                                        fontWeight = FontWeight.Medium,
-                                                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                                freeTeachers.forEach { teacher ->
+                                                    androidx.compose.material3.Surface(
+                                                        shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+                                                        color = MaterialTheme.colorScheme.secondaryContainer,
+                                                        shadowElevation = 2.dp,
                                                         modifier = Modifier.clickable {
                                                             previousMode = searchMode.name
                                                             previousQuery = selectedQuery
                                                             viewModel.setMode(SearchMode.BY_TEACHER)
                                                             viewModel.setQuery(teacher)
-                                                        }.padding(2.dp)
-                                                    )
+                                                        }
+                                                    ) {
+                                                        Text(
+                                                            text = teacher,
+                                                            style = MaterialTheme.typography.titleMedium,
+                                                            fontWeight = FontWeight.Medium,
+                                                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                                                        )
+                                                    }
                                                 }
                                             }
                                         }
