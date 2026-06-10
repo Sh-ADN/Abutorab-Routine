@@ -233,7 +233,11 @@ fun RoutineApp(viewModel: RoutineViewModel, modifier: Modifier = Modifier) {
                         }
                     }
                     val periodEntries = state.entries.filter { it.day == selectedDay && it.period == selectedPeriod }.sortedBy { it.className }
-                    if (periodEntries.isEmpty()) {
+                    val allTeachers = viewModel.teachers
+                    val busyTeachers = periodEntries.map { it.teacher }.toSet()
+                    val freeTeachers = allTeachers.filter { it !in busyTeachers }.sorted()
+                    
+                    if (periodEntries.isEmpty() && freeTeachers.isEmpty()) {
                         Text(
                             text = "No classes scheduled.",
                             style = MaterialTheme.typography.titleMedium,
@@ -243,7 +247,8 @@ fun RoutineApp(viewModel: RoutineViewModel, modifier: Modifier = Modifier) {
                     } else {
                         androidx.compose.foundation.lazy.LazyColumn(
                             modifier = Modifier.fillMaxWidth().weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 16.dp)
                         ) {
                             items(periodEntries.size) { index ->
                                 val entry = periodEntries[index]
@@ -277,6 +282,32 @@ fun RoutineApp(viewModel: RoutineViewModel, modifier: Modifier = Modifier) {
                                             fontWeight = FontWeight.Medium,
                                             color = MaterialTheme.colorScheme.primary
                                         )
+                                    }
+                                }
+                            }
+                            if (freeTeachers.isNotEmpty()) {
+                                item {
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+                                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.fillMaxWidth().padding(16.dp)
+                                        ) {
+                                            Text(
+                                                text = "Rest:",
+                                                style = MaterialTheme.typography.titleMedium,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                                            )
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Text(
+                                                text = freeTeachers.joinToString(", "),
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
+                                            )
+                                        }
                                     }
                                 }
                             }
