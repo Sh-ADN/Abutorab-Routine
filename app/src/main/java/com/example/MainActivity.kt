@@ -46,6 +46,47 @@ import kotlinx.coroutines.isActive
 
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 
+data class PeriodHeader(val num: Int, val name: String, val time: String)
+
+val daysConfig = listOf(2 to "Sunday", 3 to "Monday", 4 to "Tuesday", 5 to "Wednesday", 6 to "Thursday")
+val periodsConfig = listOf(
+    PeriodHeader(1, "1st Period", "10:26-11:10"),
+    PeriodHeader(2, "2nd Period", "11:11-11:50"),
+    PeriodHeader(3, "3rd Period", "11:51-12:30"),
+    PeriodHeader(4, "4th Period", "12:31-01:10"),
+    PeriodHeader(-1, "Tiffin Break", "01:11-02:00"),
+    PeriodHeader(5, "5th Period", "02:01-02:40"),
+    PeriodHeader(6, "6th Period", "02:41-03:20"),
+    PeriodHeader(7, "7th Period", "03:21-04:00")
+)
+
+fun parseToMinutesHelper(timeStr: String): Int {
+    val parts = timeStr.split(":")
+    if (parts.size != 2) return 0
+    var h = parts[0].toInt()
+    val m = parts[1].toInt()
+    if (h in 1..8) h += 12 // Map 01:xx PM to 13:xx
+    return h * 60 + m
+}
+
+fun getCurrentPeriodNum(): Int {
+    val currentTime = Calendar.getInstance()
+    val currentMin = currentTime.get(Calendar.HOUR_OF_DAY) * 60 + currentTime.get(Calendar.MINUTE)
+    
+    for (p in periodsConfig) {
+        if (p.num == -1) continue
+        val range = p.time.split("-")
+        if (range.size == 2) {
+            val startMin = parseToMinutesHelper(range[0])
+            val endMin = parseToMinutesHelper(range[1])
+            if (currentMin in startMin..endMin) {
+                return p.num
+            }
+        }
+    }
+    return 1
+}
+
 class MainActivity : ComponentActivity() {
     private val viewModel: RoutineViewModel by viewModels()
 
@@ -96,7 +137,13 @@ fun RoutineApp(viewModel: RoutineViewModel, modifier: Modifier = Modifier) {
             FilterChip(
                 selected = searchMode == SearchMode.BY_CLASS,
                 onClick = { viewModel.setMode(SearchMode.BY_CLASS) },
-                label = { Text("By Class") }
+                label = { Text("By Class") },
+                modifier = Modifier.padding(end = 8.dp)
+            )
+            FilterChip(
+                selected = searchMode == SearchMode.BY_PERIOD,
+                onClick = { viewModel.setMode(SearchMode.BY_PERIOD) },
+                label = { Text("By Period") }
             )
         }
 
@@ -116,82 +163,203 @@ fun RoutineApp(viewModel: RoutineViewModel, modifier: Modifier = Modifier) {
                 }
             }
             is RoutineUiState.Success -> {
-                val options = if (searchMode == SearchMode.BY_CLASS) viewModel.classes else viewModel.teachers
-                
-                var expanded by remember { mutableStateOf(false) }
-                ExposedDropdownMenuBox(
-                    expanded = expanded,
-                    onExpandedChange = { expanded = !expanded },
-                    modifier = Modifier.padding(bottom = 24.dp)
-                ) {
-                    OutlinedTextField(
-                        value = selectedQuery ?: "Select...",
-                        onValueChange = {},
-                        readOnly = true,
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                        modifier = Modifier.menuAnchor(),
-                        colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
-                    )
-                    ExposedDropdownMenu(
-                        expanded = expanded,
-                        onDismissRequest = { expanded = false }
-                    ) {
-                        options.forEach { option ->
-                            DropdownMenuItem(
-                                text = { Text(option) },
-                                onClick = {
-                                    viewModel.setQuery(option)
-                                    expanded = false
-                                }
-                            )
-                        }
+                if (searchMode == SearchMode.BY_PERIOD) {
+                    var selectedDay by remember { 
+                        val currentDay = Calendar.getInstance().get(Calendar.DAY_OF_WEEK) + 1
+                        mutableStateOf(if (currentDay in 2..6) currentDay else 2)
                     }
-                }
-
-                val currentQuery = selectedQuery
-                if (currentQuery != null) {
-                    val relevantEntries = state.entries.filter { 
-                        if (searchMode == SearchMode.BY_CLASS) {
-                            it.className == currentQuery || currentQuery.startsWith(it.className + "-")
-                        }
-                        else it.teacher == currentQuery
-                    }
-
-                    val titleText = if (searchMode == SearchMode.BY_CLASS) {
-                        "Class $currentQuery's Schedule"
-                    } else {
-                        "$currentQuery's Class Routine"
+                    var selectedPeriod by remember {
+                        mutableStateOf(getCurrentPeriodNum().takeIf { it != -1 } ?: 1)
                     }
                     
-                    Text(
-                        text = titleText,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(vertical = 16.dp),
-                        color = MaterialTheme.colorScheme.primary
-                    )
-
-                    if (relevantEntries.isEmpty()) {
+                    val validPeriods = periodsConfig.filter { it.num != -1 }
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally)
+                    ) {
+                        var dayExpanded by remember { mutableStateOf(false) }
+                        ExposedDropdownMenuBox(
+                            expanded = dayExpanded,
+                            onExpandedChange = { dayExpanded = !dayExpanded },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            OutlinedTextField(
+                                value = daysConfig.find { it.first == selectedDay }?.second ?: "Day",
+                                onValueChange = {},
+                                readOnly = true,
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = dayExpanded) },
+                                modifier = Modifier.menuAnchor().fillMaxWidth(),
+                                colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+                            )
+                            ExposedDropdownMenu(
+                                expanded = dayExpanded,
+                                onDismissRequest = { dayExpanded = false }
+                            ) {
+                                daysConfig.forEach { (dVal, dName) ->
+                                    DropdownMenuItem(
+                                        text = { Text(dName) },
+                                        onClick = { selectedDay = dVal; dayExpanded = false }
+                                    )
+                                }
+                            }
+                        }
+                        
+                        var periodExpanded by remember { mutableStateOf(false) }
+                        ExposedDropdownMenuBox(
+                            expanded = periodExpanded,
+                            onExpandedChange = { periodExpanded = !periodExpanded },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            OutlinedTextField(
+                                value = validPeriods.find { it.num == selectedPeriod }?.name ?: "Period",
+                                onValueChange = {},
+                                readOnly = true,
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = periodExpanded) },
+                                modifier = Modifier.menuAnchor().fillMaxWidth(),
+                                colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+                            )
+                            ExposedDropdownMenu(
+                                expanded = periodExpanded,
+                                onDismissRequest = { periodExpanded = false }
+                            ) {
+                                validPeriods.forEach { p ->
+                                    DropdownMenuItem(
+                                        text = { Text(p.name) },
+                                        onClick = { selectedPeriod = p.num; periodExpanded = false }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    val periodEntries = state.entries.filter { it.day == selectedDay && it.period == selectedPeriod }.sortedBy { it.className }
+                    if (periodEntries.isEmpty()) {
                         Text(
-                            text = "No schedule found",
+                            text = "No classes scheduled.",
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(top = 48.dp)
                         )
                     } else {
-                        RoutineTableWrapper(
-                            entries = relevantEntries,
-                            mode = searchMode,
-                            query = currentQuery,
-                            modifier = Modifier.weight(1f)
-                        )
+                        androidx.compose.foundation.lazy.LazyColumn(
+                            modifier = Modifier.fillMaxWidth().weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(periodEntries.size) { index ->
+                                val entry = periodEntries[index]
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column {
+                                            Text(
+                                                text = entry.className,
+                                                style = MaterialTheme.typography.titleMedium,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                text = entry.subject,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                                            )
+                                        }
+                                        Text(
+                                            text = entry.teacher,
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            fontWeight = FontWeight.Medium,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 } else {
-                    Text(
-                        text = "Please select ${if (searchMode == SearchMode.BY_CLASS) "a class" else "a teacher"}.",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 48.dp)
-                    )
+                    val options = if (searchMode == SearchMode.BY_CLASS) viewModel.classes else viewModel.teachers
+                    
+                    var expanded by remember { mutableStateOf(false) }
+                    ExposedDropdownMenuBox(
+                        expanded = expanded,
+                        onExpandedChange = { expanded = !expanded },
+                        modifier = Modifier.padding(bottom = 24.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = selectedQuery ?: "Select...",
+                            onValueChange = {},
+                            readOnly = true,
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                            modifier = Modifier.menuAnchor(),
+                            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+                        )
+                        ExposedDropdownMenu(
+                            expanded = expanded,
+                            onDismissRequest = { expanded = false }
+                        ) {
+                            options.forEach { option ->
+                                DropdownMenuItem(
+                                    text = { Text(option) },
+                                    onClick = {
+                                        viewModel.setQuery(option)
+                                        expanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    val currentQuery = selectedQuery
+                    if (currentQuery != null) {
+                        val relevantEntries = state.entries.filter { 
+                            if (searchMode == SearchMode.BY_CLASS) {
+                                it.className == currentQuery || currentQuery.startsWith(it.className + "-")
+                            }
+                            else it.teacher == currentQuery
+                        }
+
+                        val titleText = if (searchMode == SearchMode.BY_CLASS) {
+                            "Class $currentQuery's Schedule"
+                        } else {
+                            "$currentQuery's Class Routine"
+                        }
+                        
+                        Text(
+                            text = titleText,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(vertical = 16.dp),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+
+                        if (relevantEntries.isEmpty()) {
+                            Text(
+                                text = "No schedule found",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 48.dp)
+                            )
+                        } else {
+                            RoutineTableWrapper(
+                                entries = relevantEntries,
+                                mode = searchMode,
+                                query = currentQuery,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    } else {
+                        Text(
+                            text = "Please select ${if (searchMode == SearchMode.BY_CLASS) "a class" else "a teacher"}.",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 48.dp)
+                        )
+                    }
                 }
             }
         }
@@ -336,19 +504,6 @@ fun RoutineTable(
     }
 
     val borderColor = MaterialTheme.colorScheme.outlineVariant
-    val days = listOf(2 to "Sunday", 3 to "Monday", 4 to "Tuesday", 5 to "Wednesday", 6 to "Thursday")
-    
-    data class PeriodHeader(val num: Int, val name: String, val time: String)
-    val periods = listOf(
-        PeriodHeader(1, "1st Period", "10:26-11:10"),
-        PeriodHeader(2, "2nd Period", "11:11-11:50"),
-        PeriodHeader(3, "3rd Period", "11:51-12:30"),
-        PeriodHeader(4, "4th Period", "12:31-01:10"),
-        PeriodHeader(-1, "Tiffin Break", "01:11-02:00"),
-        PeriodHeader(5, "5th Period", "02:01-02:40"),
-        PeriodHeader(6, "6th Period", "02:41-03:20"),
-        PeriodHeader(7, "7th Period", "03:21-04:00")
-    )
 
     Column(
         modifier = modifier
@@ -362,11 +517,11 @@ fun RoutineTable(
                 .background(Color(0xFF34495E))
         ) {
             HeaderCell("Day", 100.dp)
-            periods.forEach { p ->
+            periodsConfig.forEach { p ->
                 if (p.num == -1) {
                     HeaderCell("Break", 50.dp, isTiffin = true, isActive = isPeriodActive(p.time)) 
                 } else {
-                    HeaderCell(p.name, 110.dp, isActive = isPeriodActive(p.time))
+                    HeaderCell(p.name, 110.dp, isActive = isPeriodActive(p.time), time = p.time)
                 }
             }
         }
@@ -374,12 +529,12 @@ fun RoutineTable(
         Row(modifier = Modifier.fillMaxWidth()) {
             // Days Column
             Column {
-                days.forEach { (dayValue, dayStr) ->
+                daysConfig.forEach { (dayValue, dayStr) ->
                     Cell(dayStr, 100.dp, isDark = true, height = 80.dp, isActive = isDayActive(dayValue))
                 }
             }
 
-            periods.forEach { p ->
+            periodsConfig.forEach { p ->
                 if (p.num == -1) {
                     val activePeriod = isPeriodActive(p.time)
                     val remMins = if (activePeriod) getRemainingMins(p.time) else null
@@ -387,7 +542,7 @@ fun RoutineTable(
                 } else {
                     Column {
                         val activePeriod = isPeriodActive(p.time)
-                        days.forEach { (dayValue, _) ->
+                        daysConfig.forEach { (dayValue, _) ->
                             val text = getCellText(entries, dayValue, p.num, mode, query)
                             val activeCell = activePeriod && isDayActive(dayValue)
                             val remMins = if (activeCell) getRemainingMins(p.time) else null
@@ -401,7 +556,7 @@ fun RoutineTable(
 }
 
 @Composable
-fun HeaderCell(text: String, width: androidx.compose.ui.unit.Dp, isTiffin: Boolean = false, isActive: Boolean = false) {
+fun HeaderCell(text: String, width: androidx.compose.ui.unit.Dp, isTiffin: Boolean = false, isActive: Boolean = false, time: String? = null) {
     val baseBackgroundColor = when {
         isActive && !isTiffin -> Color(0xFF3498DB) // Blue highlight for active period
         isTiffin -> Color(0xFFE74C3C) // Red for break
@@ -436,15 +591,30 @@ fun HeaderCell(text: String, width: androidx.compose.ui.unit.Dp, isTiffin: Boole
             .hoverable(interactionSource = interactionSource),
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = text,
-            fontWeight = FontWeight.Bold,
-            color = textColor,
-            textAlign = TextAlign.Center,
-            style = MaterialTheme.typography.titleMedium,
-            maxLines = 1,
-            softWrap = false
-        )
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = text,
+                fontWeight = FontWeight.Bold,
+                color = textColor,
+                textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+                softWrap = false
+            )
+            if (time != null) {
+                Text(
+                    text = time,
+                    color = textColor.copy(alpha = 0.8f),
+                    textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 1,
+                    softWrap = false
+                )
+            }
+        }
     }
 }
 

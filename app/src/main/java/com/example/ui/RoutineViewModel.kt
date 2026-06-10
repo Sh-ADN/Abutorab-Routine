@@ -18,7 +18,7 @@ sealed class RoutineUiState {
 }
 
 enum class SearchMode {
-    BY_CLASS, BY_TEACHER
+    BY_CLASS, BY_TEACHER, BY_PERIOD
 }
 
 class RoutineViewModel(application: Application) : AndroidViewModel(application) {
