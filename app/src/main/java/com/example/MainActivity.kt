@@ -645,12 +645,31 @@ fun HeaderComponent(modifier: Modifier = Modifier) {
                         .size(48.dp)
                         .padding(end = 12.dp)
                 )
-                Text(
-                    text = "Abutorab M.L. High School",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center
-                )
+                val textColor = if (androidx.compose.foundation.isSystemInDarkTheme()) Color(0xFFE2E8F0) else Color(0xFF34495E)
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "Abutorab M.L. High School",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        color = textColor
+                    )
+                    Text(
+                        text = "Mirsarai, Chattogram",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        color = textColor
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Class Routine",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        color = textColor
+                    )
+                }
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(
