@@ -356,7 +356,7 @@ fun RoutineApp(
                                                 freeTeachers.forEachIndexed { i, teacher ->
                                                     Text(
                                                         text = teacher + if (i < freeTeachers.size - 1) "," else "",
-                                                        style = MaterialTheme.typography.bodyLarge,
+                                                        style = MaterialTheme.typography.titleLarge,
                                                         fontWeight = FontWeight.Medium,
                                                         color = MaterialTheme.colorScheme.onSecondaryContainer,
                                                         modifier = Modifier.clickable {
@@ -408,8 +408,9 @@ fun RoutineApp(
                     }
 
                     val currentQuery = selectedQuery
+                    val isQuerySelected = currentQuery != null
                     androidx.compose.animation.AnimatedContent(
-                        targetState = currentQuery,
+                        targetState = isQuerySelected,
                         transitionSpec = {
                             (androidx.compose.animation.fadeIn(animationSpec = androidx.compose.animation.core.tween(500, delayMillis = 90)) +
                              androidx.compose.animation.scaleIn(initialScale = 0.92f, animationSpec = androidx.compose.animation.core.tween(500)))
@@ -420,20 +421,23 @@ fun RoutineApp(
                         },
                         label = "TableFormationAnimation",
                         modifier = Modifier.weight(1f).fillMaxWidth()
-                    ) { targetQuery ->
-                        if (targetQuery != null) {
+                    ) { hasQuery ->
+                        if (hasQuery && currentQuery != null) {
                             val relevantEntries = state.entries.filter { 
                                 if (searchMode == SearchMode.BY_CLASS) {
-                                    it.className == targetQuery || targetQuery.startsWith(it.className + "-")
+                                    it.className == currentQuery || currentQuery.startsWith(it.className + "-")
                                 }
-                                else it.teacher == targetQuery
+                                else it.teacher == currentQuery
                             }
 
-                            Column(modifier = Modifier.fillMaxSize()) {
+                            Column(
+                                modifier = Modifier.fillMaxSize(),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
                                 val titleText = if (searchMode == SearchMode.BY_CLASS) {
-                                    "Class $targetQuery's Schedule"
+                                    "Class $currentQuery's Schedule"
                                 } else {
-                                    "$targetQuery's Class Routine"
+                                    "$currentQuery's Class Routine"
                                 }
                                 
                                 Text(
@@ -441,7 +445,8 @@ fun RoutineApp(
                                     style = MaterialTheme.typography.titleLarge,
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier.padding(bottom = 16.dp),
-                                    color = MaterialTheme.colorScheme.primary
+                                    color = MaterialTheme.colorScheme.primary,
+                                    textAlign = TextAlign.Center
                                 )
 
                                 if (relevantEntries.isEmpty()) {
@@ -449,23 +454,27 @@ fun RoutineApp(
                                         text = "No schedule found",
                                         style = MaterialTheme.typography.titleMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.padding(top = 48.dp)
+                                        modifier = Modifier.padding(top = 48.dp),
+                                        textAlign = TextAlign.Center
                                     )
                                 } else {
                                     RoutineTableWrapper(
                                         entries = relevantEntries,
                                         mode = searchMode,
-                                        query = targetQuery,
+                                        query = currentQuery,
                                         modifier = Modifier.weight(1f)
                                     )
                                 }
                             }
                         } else {
-                            Text(
-                                text = "Please select ${if (searchMode == SearchMode.BY_CLASS) "a class" else "a teacher"}.",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(top = 48.dp)
-                            )
+                            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+                                Text(
+                                    text = "Please select ${if (searchMode == SearchMode.BY_CLASS) "a class" else "a teacher"}.",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(top = 48.dp),
+                                    textAlign = TextAlign.Center
+                                )
+                            }
                         }
                     }
                 }

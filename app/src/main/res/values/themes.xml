@@ -6,7 +6,7 @@
         <!-- Set the splash screen background -->
         <item name="windowSplashScreenBackground">#FFFFFF</item>
         <!-- Use windowSplashScreenAnimatedIcon to add a drawable or an animated drawable. -->
-        <item name="windowSplashScreenAnimatedIcon">@drawable/school_logo_large</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_icon</item>
         <!-- Set the post splash screen theme -->
         <item name="postSplashScreenTheme">@style/Theme.MyApplication</item>
     </style>
