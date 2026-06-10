@@ -304,7 +304,8 @@ fun RoutineApp(viewModel: RoutineViewModel, modifier: Modifier = Modifier) {
                                             Spacer(modifier = Modifier.height(8.dp))
                                             Text(
                                                 text = freeTeachers.joinToString(", "),
-                                                style = MaterialTheme.typography.bodyMedium,
+                                                style = MaterialTheme.typography.bodyLarge,
+                                                fontWeight = FontWeight.Medium,
                                                 color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
                                             )
                                         }
