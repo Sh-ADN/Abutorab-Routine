@@ -46,6 +46,15 @@ import kotlinx.coroutines.isActive
 
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 
+import androidx.compose.runtime.saveable.rememberSaveable
+
+import androidx.compose.animation.togetherWith
+import androidx.compose.ui.draw.rotate
+
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.WbSunny
+import androidx.compose.material.icons.filled.Nightlight
+
 data class PeriodHeader(val num: Int, val name: String, val time: String)
 
 val daysConfig = listOf(2 to "Sunday", 3 to "Monday", 4 to "Tuesday", 5 to "Wednesday", 6 to "Thursday")
@@ -95,10 +104,14 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            MyApplicationTheme {
+            var darkTheme by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<Boolean?>(null) }
+            val isDark = darkTheme ?: androidx.compose.foundation.isSystemInDarkTheme()
+            MyApplicationTheme(darkTheme = isDark) {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     RoutineApp(
                         viewModel = viewModel,
+                        isDarkTheme = isDark,
+                        onThemeToggle = { darkTheme = !isDark },
                         modifier = Modifier.padding(innerPadding)
                     )
                 }
@@ -107,12 +120,33 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-fun RoutineApp(viewModel: RoutineViewModel, modifier: Modifier = Modifier) {
+fun RoutineApp(
+    viewModel: RoutineViewModel,
+    isDarkTheme: Boolean,
+    onThemeToggle: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     val uiState by viewModel.uiState.collectAsState()
     val searchMode by viewModel.searchMode.collectAsState()
     val selectedQuery by viewModel.selectedQuery.collectAsState()
+
+    var previousMode by rememberSaveable { mutableStateOf<String?>(null) }
+    var previousQuery by rememberSaveable { mutableStateOf<String?>(null) }
+
+    androidx.activity.compose.BackHandler(enabled = previousMode != null) {
+        val modeStr = previousMode
+        if (modeStr != null) {
+            viewModel.setMode(SearchMode.valueOf(modeStr as String))
+            val q = previousQuery as? String
+            if (q != null) {
+                viewModel.setQuery(q)
+            }
+            previousMode = null
+            previousQuery = null
+        }
+    }
 
     Column(
         modifier = modifier
@@ -120,7 +154,11 @@ fun RoutineApp(viewModel: RoutineViewModel, modifier: Modifier = Modifier) {
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        HeaderComponent(modifier = Modifier.padding(bottom = 16.dp))
+        HeaderComponent(
+            isDarkTheme = isDarkTheme,
+            onThemeToggle = onThemeToggle,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
 
         Row(
             modifier = Modifier
@@ -163,19 +201,22 @@ fun RoutineApp(viewModel: RoutineViewModel, modifier: Modifier = Modifier) {
                 }
             }
             is RoutineUiState.Success -> {
-                if (searchMode == SearchMode.BY_PERIOD) {
-                    var selectedDay by remember { 
-                        val currentDay = Calendar.getInstance().get(Calendar.DAY_OF_WEEK) + 1
-                        mutableStateOf(if (currentDay in 2..6) currentDay else 2)
-                    }
-                    var selectedPeriod by remember {
-                        mutableStateOf(getCurrentPeriodNum().takeIf { it != -1 } ?: 1)
-                    }
-                    
-                    val validPeriods = periodsConfig.filter { it.num != -1 }
-                    
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                val saveableStateHolder = androidx.compose.runtime.saveable.rememberSaveableStateHolder()
+                saveableStateHolder.SaveableStateProvider(searchMode) {
+                    if (searchMode == SearchMode.BY_PERIOD) {
+                        var selectedDay by rememberSaveable { 
+                            val currentDay = Calendar.getInstance().get(Calendar.DAY_OF_WEEK) + 1
+                            mutableStateOf(if (currentDay in 2..6) currentDay else 2)
+                        }
+                        var selectedPeriod by rememberSaveable {
+                            mutableStateOf(getCurrentPeriodNum().takeIf { it != -1 } ?: 1)
+                        }
+                        val periodListState = androidx.compose.foundation.lazy.rememberLazyListState()
+                        
+                        val validPeriods = periodsConfig.filter { it.num != -1 }
+                        
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
                         horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally)
                     ) {
                         var dayExpanded by remember { mutableStateOf(false) }
@@ -246,6 +287,7 @@ fun RoutineApp(viewModel: RoutineViewModel, modifier: Modifier = Modifier) {
                         )
                     } else {
                         androidx.compose.foundation.lazy.LazyColumn(
+                            state = periodListState,
                             modifier = Modifier.fillMaxWidth().weight(1f),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                             contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 16.dp)
@@ -280,7 +322,13 @@ fun RoutineApp(viewModel: RoutineViewModel, modifier: Modifier = Modifier) {
                                             text = entry.teacher,
                                             style = MaterialTheme.typography.bodyLarge,
                                             fontWeight = FontWeight.Medium,
-                                            color = MaterialTheme.colorScheme.primary
+                                            color = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.clickable {
+                                                previousMode = searchMode.name
+                                                previousQuery = selectedQuery
+                                                viewModel.setMode(SearchMode.BY_TEACHER)
+                                                viewModel.setQuery(entry.teacher)
+                                            }.padding(4.dp)
                                         )
                                     }
                                 }
@@ -302,12 +350,24 @@ fun RoutineApp(viewModel: RoutineViewModel, modifier: Modifier = Modifier) {
                                                 color = MaterialTheme.colorScheme.onSecondaryContainer
                                             )
                                             Spacer(modifier = Modifier.height(8.dp))
-                                            Text(
-                                                text = freeTeachers.joinToString(", "),
-                                                style = MaterialTheme.typography.bodyLarge,
-                                                fontWeight = FontWeight.Medium,
-                                                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
-                                            )
+                                            androidx.compose.foundation.layout.FlowRow(
+                                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                            ) {
+                                                freeTeachers.forEachIndexed { i, teacher ->
+                                                    Text(
+                                                        text = teacher + if (i < freeTeachers.size - 1) "," else "",
+                                                        style = MaterialTheme.typography.bodyLarge,
+                                                        fontWeight = FontWeight.Medium,
+                                                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                                        modifier = Modifier.clickable {
+                                                            previousMode = searchMode.name
+                                                            previousQuery = selectedQuery
+                                                            viewModel.setMode(SearchMode.BY_TEACHER)
+                                                            viewModel.setQuery(teacher)
+                                                        }.padding(2.dp)
+                                                    )
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -348,50 +408,67 @@ fun RoutineApp(viewModel: RoutineViewModel, modifier: Modifier = Modifier) {
                     }
 
                     val currentQuery = selectedQuery
-                    if (currentQuery != null) {
-                        val relevantEntries = state.entries.filter { 
-                            if (searchMode == SearchMode.BY_CLASS) {
-                                it.className == currentQuery || currentQuery.startsWith(it.className + "-")
+                    androidx.compose.animation.AnimatedContent(
+                        targetState = currentQuery,
+                        transitionSpec = {
+                            (androidx.compose.animation.fadeIn(animationSpec = androidx.compose.animation.core.tween(500, delayMillis = 90)) +
+                             androidx.compose.animation.scaleIn(initialScale = 0.92f, animationSpec = androidx.compose.animation.core.tween(500)))
+                            .togetherWith(
+                                 androidx.compose.animation.fadeOut(animationSpec = androidx.compose.animation.core.tween(90)) +
+                                 androidx.compose.animation.scaleOut(targetScale = 0.92f, animationSpec = androidx.compose.animation.core.tween(90))
+                            )
+                        },
+                        label = "TableFormationAnimation",
+                        modifier = Modifier.weight(1f).fillMaxWidth()
+                    ) { targetQuery ->
+                        if (targetQuery != null) {
+                            val relevantEntries = state.entries.filter { 
+                                if (searchMode == SearchMode.BY_CLASS) {
+                                    it.className == targetQuery || targetQuery.startsWith(it.className + "-")
+                                }
+                                else it.teacher == targetQuery
                             }
-                            else it.teacher == currentQuery
-                        }
 
-                        val titleText = if (searchMode == SearchMode.BY_CLASS) {
-                            "Class $currentQuery's Schedule"
+                            Column(modifier = Modifier.fillMaxSize()) {
+                                val titleText = if (searchMode == SearchMode.BY_CLASS) {
+                                    "Class $targetQuery's Schedule"
+                                } else {
+                                    "$targetQuery's Class Routine"
+                                }
+                                
+                                Text(
+                                    text = titleText,
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(bottom = 16.dp),
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+
+                                if (relevantEntries.isEmpty()) {
+                                    Text(
+                                        text = "No schedule found",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(top = 48.dp)
+                                    )
+                                } else {
+                                    RoutineTableWrapper(
+                                        entries = relevantEntries,
+                                        mode = searchMode,
+                                        query = targetQuery,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                            }
                         } else {
-                            "$currentQuery's Class Routine"
-                        }
-                        
-                        Text(
-                            text = titleText,
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(vertical = 16.dp),
-                            color = MaterialTheme.colorScheme.primary
-                        )
-
-                        if (relevantEntries.isEmpty()) {
                             Text(
-                                text = "No schedule found",
-                                style = MaterialTheme.typography.titleMedium,
+                                text = "Please select ${if (searchMode == SearchMode.BY_CLASS) "a class" else "a teacher"}.",
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(top = 48.dp)
                             )
-                        } else {
-                            RoutineTableWrapper(
-                                entries = relevantEntries,
-                                mode = searchMode,
-                                query = currentQuery,
-                                modifier = Modifier.weight(1f)
-                            )
                         }
-                    } else {
-                        Text(
-                            text = "Please select ${if (searchMode == SearchMode.BY_CLASS) "a class" else "a teacher"}.",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 48.dp)
-                        )
                     }
+                }
                 }
             }
         }
@@ -691,44 +768,60 @@ fun Cell(text: String, width: androidx.compose.ui.unit.Dp, isDark: Boolean, heig
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            if (text.isNotBlank()) {
-                Text(
-                    text = text,
-                    textAlign = TextAlign.Center,
-                    style = if (isDark) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyMedium,
-                    fontWeight = if (isDark || isActive) FontWeight.Bold else FontWeight.Medium,
-                    color = if (isActive) Color(0xFF2980B9) else Color(0xFF333333),
-                    lineHeight = 16.sp,
-                    maxLines = if (isDark) 1 else Int.MAX_VALUE,
-                    softWrap = !isDark
-                )
-                if (remainingMins != null && !isDark) {
-                    Spacer(modifier = Modifier.height(2.dp))
+            androidx.compose.animation.AnimatedContent(
+                targetState = text,
+                transitionSpec = {
+                    if (targetState.isNotBlank() && initialState.isBlank() || initialState == "-") {
+                        (androidx.compose.animation.fadeIn(animationSpec = tween(400, delayMillis = 100)) + 
+                         androidx.compose.animation.scaleIn(initialScale = 0.5f, animationSpec = tween(400, delayMillis = 100)))
+                        .togetherWith(
+                            androidx.compose.animation.fadeOut(animationSpec = tween(200)) + 
+                            androidx.compose.animation.scaleOut(targetScale = 0.5f, animationSpec = tween(200))
+                        )
+                    } else if (targetState == "-" || targetState.isBlank()) {
+                        androidx.compose.animation.fadeIn(animationSpec = tween(200))
+                        .togetherWith(
+                            androidx.compose.animation.fadeOut(animationSpec = tween(400)) + 
+                            androidx.compose.animation.scaleOut(targetScale = 1.5f, animationSpec = tween(400))
+                        )
+                    } else {
+                         (androidx.compose.animation.slideInVertically(animationSpec = tween(400)) { height -> height } + androidx.compose.animation.fadeIn(animationSpec = tween(400)))
+                        .togetherWith(
+                             androidx.compose.animation.slideOutVertically(animationSpec = tween(400)) { height -> -height } + androidx.compose.animation.fadeOut(animationSpec = tween(400))
+                        )
+                    }
+                },
+                label = "textAnimation"
+            ) { currentText ->
+                if (currentText.isNotBlank() && currentText != "-") {
                     Text(
-                        text = "$remainingMins min left",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFFE74C3C),
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center
+                        text = currentText,
+                        textAlign = TextAlign.Center,
+                        style = if (isDark) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyMedium,
+                        fontWeight = if (isDark || isActive) FontWeight.Bold else FontWeight.Medium,
+                        color = if (isActive) Color(0xFF2980B9) else Color(0xFF333333),
+                        lineHeight = 16.sp,
+                        maxLines = if (isDark) 1 else Int.MAX_VALUE,
+                        softWrap = !isDark
+                    )
+                } else {
+                    Text(
+                        text = "-",
+                        textAlign = TextAlign.Center,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color(0xFF666666)
                     )
                 }
-            } else {
+            }
+            if (remainingMins != null && !isDark) {
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "-",
-                    textAlign = TextAlign.Center,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xFF666666)
+                    text = "$remainingMins min left",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color(0xFFE74C3C),
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
                 )
-                if (remainingMins != null && !isDark) {
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "$remainingMins min left",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFFE74C3C),
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center
-                    )
-                }
             }
         }
     }
@@ -821,7 +914,11 @@ fun getCellText(
 }
 
 @Composable
-fun HeaderComponent(modifier: Modifier = Modifier) {
+fun HeaderComponent(
+    isDarkTheme: Boolean,
+    onThemeToggle: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -830,48 +927,88 @@ fun HeaderComponent(modifier: Modifier = Modifier) {
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
+        Box(modifier = Modifier.fillMaxWidth()) {
+            val rotation by androidx.compose.animation.core.animateFloatAsState(
+                targetValue = if (isDarkTheme) 360f else 0f,
+                animationSpec = androidx.compose.animation.core.tween(durationMillis = 500, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+                label = "ThemeRotation"
+            )
+
+            androidx.compose.material3.IconButton(
+                onClick = onThemeToggle,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(8.dp)
             ) {
-                androidx.compose.foundation.Image(
-                    painter = androidx.compose.ui.res.painterResource(id = R.drawable.school_logo),
-                    contentDescription = "School Logo",
-                    modifier = Modifier
-                        .size(48.dp)
-                        .padding(end = 12.dp)
-                )
-                val textColor = if (androidx.compose.foundation.isSystemInDarkTheme()) Color(0xFFE2E8F0) else Color(0xFF34495E)
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = "Abutorab M.L. High School",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center,
-                        color = textColor
-                    )
-                    Text(
-                        text = "Mirsarai, Chattogram",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center,
-                        color = textColor
-                    )
+                Box(
+                    modifier = Modifier.rotate(rotation),
+                    contentAlignment = Alignment.Center
+                ) {
+                    androidx.compose.animation.Crossfade(
+                        targetState = isDarkTheme,
+                        animationSpec = androidx.compose.animation.core.tween(durationMillis = 500),
+                        label = "ThemeCrossfade"
+                    ) { darkTheme ->
+                        if (darkTheme) {
+                            androidx.compose.material3.Icon(
+                                imageVector = Icons.Filled.WbSunny,
+                                contentDescription = "Switch to Light Theme",
+                                tint = Color(0xFFFFC107) // Amber/Gold for Sun
+                            )
+                        } else {
+                            androidx.compose.material3.Icon(
+                                imageVector = Icons.Filled.Nightlight,
+                                contentDescription = "Switch to Dark Theme",
+                                tint = Color(0xFF2C3E50) // Dark Blue for Moon
+                            )
+                        }
+                    }
                 }
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Welcome to the Official Routine Portal. Stay updated with your daily class schedules seamlessly.",
+            
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    androidx.compose.foundation.Image(
+                        painter = androidx.compose.ui.res.painterResource(id = R.drawable.school_logo),
+                        contentDescription = "School Logo",
+                        modifier = Modifier
+                            .size(48.dp)
+                            .padding(end = 12.dp)
+                    )
+                    val textColor = if (isDarkTheme) Color(0xFFE2E8F0) else Color(0xFF34495E)
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "Abutorab M.L. High School",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                            color = textColor
+                        )
+                        Text(
+                            text = "Mirsarai, Chattogram",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                            color = textColor
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Welcome to the Official Routine Portal. Stay updated with your daily class schedules seamlessly.",
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
             )
+        }
         }
     }
 }
