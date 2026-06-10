@@ -29,6 +29,11 @@ import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.hoverable
 import androidx.compose.ui.draw.clipToBounds
 import com.example.data.RoutineEntry
 import com.example.ui.RoutineUiState
@@ -39,10 +44,13 @@ import java.util.Calendar
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+
 class MainActivity : ComponentActivity() {
     private val viewModel: RoutineViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
@@ -394,19 +402,38 @@ fun RoutineTable(
 
 @Composable
 fun HeaderCell(text: String, width: androidx.compose.ui.unit.Dp, isTiffin: Boolean = false, isActive: Boolean = false) {
-    val backgroundColor = when {
+    val baseBackgroundColor = when {
         isActive && !isTiffin -> Color(0xFF3498DB) // Blue highlight for active period
         isTiffin -> Color(0xFFE74C3C) // Red for break
         else -> Color(0xFF34495E) // Dark blue default
     }
+    
+    val interactionSource = remember { MutableInteractionSource() }
+    val isHovered by interactionSource.collectIsHoveredAsState()
+    
+    val targetBackgroundColor = if (isHovered) {
+        if (isTiffin) Color(0xFFC0392B)
+        else if (isActive && !isTiffin) Color(0xFF2980B9)
+        else Color(0xFF2C3E50)
+    } else {
+        baseBackgroundColor
+    }
+    
+    val animatedBackgroundColor by animateColorAsState(
+        targetValue = targetBackgroundColor,
+        animationSpec = tween(durationMillis = 150),
+        label = "headerBgColor"
+    )
+
     val textColor = Color.White
     
     Box(
         modifier = Modifier
             .width(width)
             .height(56.dp)
-            .background(backgroundColor)
-            .border(if (isActive && !isTiffin) 1.5.dp else 0.5.dp, if (isActive && !isTiffin) Color(0xFF2980B9) else Color(0xFFE0E0E0)),
+            .background(animatedBackgroundColor)
+            .border(if (isActive && !isTiffin) 1.5.dp else 0.5.dp, if (isActive && !isTiffin) Color(0xFF2980B9) else Color(0xFFE0E0E0))
+            .hoverable(interactionSource = interactionSource),
         contentAlignment = Alignment.Center
     ) {
         Text(
@@ -423,19 +450,38 @@ fun HeaderCell(text: String, width: androidx.compose.ui.unit.Dp, isTiffin: Boole
 
 @Composable
 fun Cell(text: String, width: androidx.compose.ui.unit.Dp, isDark: Boolean, height: androidx.compose.ui.unit.Dp = 80.dp, isActive: Boolean = false, remainingMins: Int? = null) {
-    val backgroundColor = when {
-        isDark && isActive -> Color(0xFFEAF2F8) // Highlight day
+    val baseBackgroundColor = when {
+        isDark && isActive -> Color(0xFFC6E0F5) // Highlight day
         isActive -> Color(0xFFEAF2F8) // Highlight cell
-        isDark -> Color(0xFFF9F9F9) // Day column matches content background in image
-        else -> Color(0xFFF9F9F9) // Standard content background
+        isDark -> Color(0xFFDFE4E8) // Day column background from image
+        else -> Color(0xFFFFFFFF) // Standard content background
     }
+
+    val interactionSource = remember { MutableInteractionSource() }
+    val isHovered by interactionSource.collectIsHoveredAsState()
+    
+    val targetBackgroundColor = if (isHovered) {
+        if (isDark && isActive) Color(0xFFB5D5EF)
+        else if (isActive) Color(0xFFDCEAF5)
+        else if (isDark) Color(0xFFD2D8DF)
+        else Color(0xFFF5F7F9)
+    } else {
+        baseBackgroundColor
+    }
+    
+    val animatedBackgroundColor by animateColorAsState(
+        targetValue = targetBackgroundColor,
+        animationSpec = tween(durationMillis = 150),
+        label = "cellBgColor"
+    )
 
     Box(
         modifier = Modifier
             .width(width)
             .height(height)
-            .background(backgroundColor)
+            .background(animatedBackgroundColor)
             .border(if (isActive) 1.5.dp else 0.5.dp, if (isActive) Color(0xFF3498DB) else Color(0xFFE0E0E0))
+            .hoverable(interactionSource = interactionSource)
             .padding(2.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -488,12 +534,31 @@ fun Cell(text: String, width: androidx.compose.ui.unit.Dp, isDark: Boolean, heig
 
 @Composable
 fun TiffinBreakCell(width: androidx.compose.ui.unit.Dp, totalHeight: androidx.compose.ui.unit.Dp, isActive: Boolean = false, remainingMins: Int? = null) {
+    val baseBackgroundColor = if (isActive) Color(0xFFFFD1AA) else Color(0xFFFFF0E6)
+
+    val interactionSource = remember { MutableInteractionSource() }
+    val isHovered by interactionSource.collectIsHoveredAsState()
+    
+    val targetBackgroundColor = if (isHovered) {
+        if (isActive) Color(0xFFFFC08B)
+        else Color(0xFFFFE0CA)
+    } else {
+        baseBackgroundColor
+    }
+    
+    val animatedBackgroundColor by animateColorAsState(
+        targetValue = targetBackgroundColor,
+        animationSpec = tween(durationMillis = 150),
+        label = "tiffinBgColor"
+    )
+
     Box(
         modifier = Modifier
             .width(width)
             .height(totalHeight)
-            .background(if (isActive) Color(0xFFFFD1AA) else Color(0xFFFFF0E6))
-            .border(if (isActive) 1.5.dp else 0.5.dp, if (isActive) Color(0xFFE65100) else Color(0xFFE0E0E0)),
+            .background(animatedBackgroundColor)
+            .border(if (isActive) 1.5.dp else 0.5.dp, if (isActive) Color(0xFFE65100) else Color(0xFFE0E0E0))
+            .hoverable(interactionSource = interactionSource),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -569,12 +634,24 @@ fun HeaderComponent(modifier: Modifier = Modifier) {
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = "Abutorab M.L. High School",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                androidx.compose.foundation.Image(
+                    painter = androidx.compose.ui.res.painterResource(id = R.drawable.school_logo),
+                    contentDescription = "School Logo",
+                    modifier = Modifier
+                        .size(48.dp)
+                        .padding(end = 12.dp)
+                )
+                Text(
+                    text = "Abutorab M.L. High School",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+            }
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "Welcome to the Official Routine Portal. Stay updated with your daily class schedules seamlessly.",
