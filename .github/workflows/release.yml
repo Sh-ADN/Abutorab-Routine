@@ -33,9 +33,23 @@ jobs:
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
+      - name: Get version name
+        id: version
+        run: |
+          echo "VERSION=v$(date +'%Y.%m.%d-%H%M')" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: abutorab-release-apk
-          path: app/build/outputs/apk/release/app-release.apk
-          retention-days: 30
+          tag_name: ${{ steps.version.outputs.VERSION }}
+          name: "Abutorab Routine ${{ steps.version.outputs.VERSION }}"
+          body: |
+            📱 **Abutorab M.L. High School Routine App**
+            
+            **How to install:**
+            1. Download the APK file below
+            2. Open it on your Android phone
+            3. If asked, allow "Install from unknown sources"
+            4. Install and enjoy!
+          files: app/build/outputs/apk/release/app-release.apk
+          make_latest: true
