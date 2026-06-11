@@ -19,3 +19,30 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Moshi
+-keep class com.example.data.** { *; }
+-keep @com.squareup.moshi.JsonClass class * { *; }
+-keepclassmembers class * {
+    @com.squareup.moshi.Json <fields>;
+}
+-dontwarn com.squareup.moshi.**
+
+# Retrofit
+-keepattributes Signature
+-keepattributes *Annotation*
+-keep class retrofit2.** { *; }
+-dontwarn retrofit2.**
+
+# OkHttp
+-dontwarn okhttp3.**
+-dontwarn okio.**
+
+# Kotlin
+-keep class kotlin.** { *; }
+-dontwarn kotlin.**
+
+# Bouncy Castle and other missing classes
+-dontwarn org.bouncycastle.**
+-dontwarn org.conscrypt.**
+-dontwarn org.openjsse.**
