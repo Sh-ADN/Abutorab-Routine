@@ -27,7 +27,6 @@ jobs:
       - name: Decode keystore
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > my-upload-key.jks
-          cp my-upload-key.jks ${{ github.workspace }}/my-upload-key.jks
 
       - name: Build release APK
         run: gradle assembleRelease
