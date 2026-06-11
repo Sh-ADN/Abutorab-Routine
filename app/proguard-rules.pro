@@ -46,3 +46,14 @@
 -dontwarn org.bouncycastle.**
 -dontwarn org.conscrypt.**
 -dontwarn org.openjsse.**
+
+# Ignore all missing classes from these packages
+-ignorewarnings
+
+# OkHttp platform used only on JVM and when Conscrypt and other security providers are available
+-dontwarn javax.annotation.**
+-dontwarn org.codehaus.mojo.animal_sniffer.*
+-dontwarn com.android.tools.r8.**
+
+# R8 specific
+-dontnote **
