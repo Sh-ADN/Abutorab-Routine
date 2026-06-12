@@ -1,4 +1,4 @@
-package com.example
+package com.abutorab.routine
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
