@@ -1,4 +1,4 @@
-package com.abutorab.routine
+package com.example
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -35,11 +35,11 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.hoverable
 import androidx.compose.ui.draw.clipToBounds
-import com.abutorab.routine.data.RoutineEntry
-import com.abutorab.routine.ui.RoutineUiState
-import com.abutorab.routine.ui.RoutineViewModel
-import com.abutorab.routine.ui.SearchMode
-import com.abutorab.routine.ui.theme.MyApplicationTheme
+import com.example.data.RoutineEntry
+import com.example.ui.RoutineUiState
+import com.example.ui.RoutineViewModel
+import com.example.ui.SearchMode
+import com.example.ui.theme.MyApplicationTheme
 import java.util.Calendar
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive

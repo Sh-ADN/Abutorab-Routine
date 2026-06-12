@@ -1,4 +1,4 @@
-package com.abutorab.routine.data
+package com.example.data
 
 import android.content.Context
 import android.content.SharedPreferences

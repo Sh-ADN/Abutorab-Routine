@@ -1,4 +1,4 @@
-package com.abutorab.routine.ui.theme
+package com.example.ui.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme

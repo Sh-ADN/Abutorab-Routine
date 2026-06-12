@@ -21,7 +21,7 @@
 #-renamesourcefileattribute SourceFile
 
 # Moshi
--keep class com.example.data.** { *; }
+-keep class com.abutorab.routine.data.** { *; }
 -keep @com.squareup.moshi.JsonClass class * { *; }
 -keepclassmembers class * {
     @com.squareup.moshi.Json <fields>;
