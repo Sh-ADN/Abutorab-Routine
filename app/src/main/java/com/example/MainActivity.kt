@@ -1,4 +1,4 @@
-package com.example
+package com.abutorab.routine
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
