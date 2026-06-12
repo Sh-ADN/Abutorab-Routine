@@ -3,8 +3,8 @@ package com.abutorab.routine.ui
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.data.RoutineEntry
-import com.example.data.RoutineRepository
+import com.abutorab.routine.data.RoutineEntry
+import com.abutorab.routine.data.RoutineRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
