@@ -7,11 +7,11 @@ plugins {
 }
 
 android {
-  namespace = "com.example"
+  namespace = "com.abutorab.routine"
   compileSdk { version = release(36) { minorApiLevel = 1 } }
 
   defaultConfig {
-    applicationId = "com.example"
+applicationId = "com.abutorab.routine"
     minSdk = 24
     targetSdk = 36
     versionCode = 1
