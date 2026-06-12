@@ -1,4 +1,4 @@
-package com.example.ui
+package com.abutorab.routine.ui
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
