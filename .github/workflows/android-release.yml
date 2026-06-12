@@ -25,7 +25,6 @@ jobs:
 
     - name: Build Release APK
       env:
-        KEYSTORE_PATH: "my-upload-key.jks"
         STORE_PASSWORD: "android"
         KEY_PASSWORD: "android"
       run: gradle assembleRelease
@@ -34,4 +33,4 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: app-release-apk
-        path: app/build/outputs/apk/release/app-release-unsigned.apk # Or app-release.apk if signed
+        path: app/build/outputs/apk/release/app-release*.apk
