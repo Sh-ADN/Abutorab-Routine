@@ -1,6 +1,5 @@
 *.iml
 .gradle
-.kotlin
 /local.properties
 /.idea/caches
 /.idea/libraries
@@ -14,5 +13,21 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Android Studio overrides
+.idea/
+
+# Keystores
+*.jks
+*.keystore
+!debug.keystore
+
+# Google Services
+google-services.json
+
+# Environment variables
 .env
-debug.keystore
+
+# App build folders
+/app/build
+/.build-outputs
