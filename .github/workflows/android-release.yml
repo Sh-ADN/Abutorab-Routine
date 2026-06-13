@@ -29,8 +29,13 @@ jobs:
           sed -i 's/keyAlias = "upload"/keyAlias = "androiddebugkey"/g' app/build.gradle.kts
           sed -i 's/namespace = "com.example"/namespace = "com.abutorab.routine"/g' app/build.gradle.kts
           sed -i 's/applicationId = "com.example"/applicationId = "com.abutorab.routine"/g' app/build.gradle.kts
+          BUILD_NUMBER=${{ github.run_number }}
+          sed -i "s/versionCode = [0-9]*/versionCode = $BUILD_NUMBER/g" app/build.gradle.kts
+          MAJOR=$(( BUILD_NUMBER / 10 ))
+          MINOR=$(( BUILD_NUMBER % 10 ))
+          sed -i "s/versionName = \"[^\"]*\"/versionName = \"$MAJOR.$MINOR\"/g" app/build.gradle.kts
           echo "=== build.gradle.kts after fixes ==="
-          grep -n "isShrinkResources\|keyAlias\|namespace\|applicationId" app/build.gradle.kts
+          grep -n "isShrinkResources\|keyAlias\|namespace\|applicationId\|versionCode\|versionName" app/build.gradle.kts
 
       - name: Decode keystore
         run: |
