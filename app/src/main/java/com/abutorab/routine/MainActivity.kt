@@ -541,6 +541,7 @@ fun RoutineTableWrapper(
     modifier: Modifier = Modifier
 ) {
     var scale by remember { mutableFloatStateOf(1f) }
+    var minScale by remember { mutableFloatStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
     var initialSetupDone by remember { mutableStateOf(false) }
     var tableSize by remember { mutableStateOf(androidx.compose.ui.unit.IntSize.Zero) }
@@ -563,8 +564,8 @@ fun RoutineTableWrapper(
                     detectTapGestures(
                         onDoubleTap = { centroid: Offset ->
                             coroutineScope.launch {
-                                // Toggle between 1x and 2x zoom smoothly
-                                val targetScale = if (scale < 1.5f) 2.5f else 1f
+                                // Toggle between minScale and 1f
+                                val targetScale = if (scale < 1.0f) 1f else minScale
                                 androidx.compose.animation.core.animate(
                                     initialValue = scale,
                                     targetValue = targetScale,
@@ -596,7 +597,7 @@ fun RoutineTableWrapper(
                 .pointerInput(tableSize, availableWidthPx, availableHeightPx) {
                     detectTransformGestures { centroid, pan, zoom, _ ->
                         val oldScale = scale
-                        scale = (scale * zoom).coerceIn(0.25f, 4f)
+                        scale = (scale * zoom).coerceIn(minScale, 4f)
                         
                         // Keep the focus on the pinched point
                         val fraction = (scale / oldScale) - 1
@@ -629,6 +630,7 @@ fun RoutineTableWrapper(
                     1f
                 }
                 scale = ratio
+                minScale = ratio
                 // Start at top left initially
                 offset = Offset.Zero
                 initialSetupDone = true
@@ -639,8 +641,8 @@ fun RoutineTableWrapper(
                     .graphicsLayer {
                         scaleX = scale
                         scaleY = scale
-                        translationX = offset.x
-                        translationY = offset.y
+                        translationX = kotlin.math.round(offset.x)
+                        translationY = kotlin.math.round(offset.y)
                         transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0f)
                     }
                     .wrapContentSize(unbounded = true, align = Alignment.TopStart)
