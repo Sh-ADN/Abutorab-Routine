@@ -35,6 +35,8 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.hoverable
 import androidx.compose.ui.draw.clipToBounds
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import com.abutorab.routine.data.RoutineEntry
 import com.abutorab.routine.ui.RoutineUiState
 import com.abutorab.routine.ui.RoutineViewModel
@@ -103,7 +105,12 @@ class MainActivity : ComponentActivity() {
     private val viewModel: RoutineViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        installSplashScreen()
+        var keepSplashScreen = true
+        lifecycleScope.launch {
+            delay(1000)
+            keepSplashScreen = false
+        }
+        installSplashScreen().setKeepOnScreenCondition { keepSplashScreen }
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
@@ -228,14 +235,24 @@ fun RoutineApp(
                             onExpandedChange = { dayExpanded = !dayExpanded },
                             modifier = Modifier.weight(1f)
                         ) {
-                            OutlinedTextField(
-                                value = daysConfig.find { it.first == selectedDay }?.second ?: "Day",
-                                onValueChange = {},
-                                readOnly = true,
-                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = dayExpanded) },
-                                modifier = Modifier.menuAnchor().fillMaxWidth(),
-                                colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
-                            )
+                            Surface(
+                                modifier = Modifier.menuAnchor().fillMaxWidth().height(56.dp),
+                                shape = RoundedCornerShape(16.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 16.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = daysConfig.find { it.first == selectedDay }?.second ?: "Day",
+                                        modifier = Modifier.weight(1f),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        style = MaterialTheme.typography.bodyLarge
+                                    )
+                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = dayExpanded)
+                                }
+                            }
                             ExposedDropdownMenu(
                                 expanded = dayExpanded,
                                 onDismissRequest = { dayExpanded = false }
@@ -255,14 +272,24 @@ fun RoutineApp(
                             onExpandedChange = { periodExpanded = !periodExpanded },
                             modifier = Modifier.weight(1f)
                         ) {
-                            OutlinedTextField(
-                                value = validPeriods.find { it.num == selectedPeriod }?.name ?: "Period",
-                                onValueChange = {},
-                                readOnly = true,
-                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = periodExpanded) },
-                                modifier = Modifier.menuAnchor().fillMaxWidth(),
-                                colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
-                            )
+                            Surface(
+                                modifier = Modifier.menuAnchor().fillMaxWidth().height(56.dp),
+                                shape = RoundedCornerShape(16.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 16.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = validPeriods.find { it.num == selectedPeriod }?.name ?: "Period",
+                                        modifier = Modifier.weight(1f),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        style = MaterialTheme.typography.bodyLarge
+                                    )
+                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = periodExpanded)
+                                }
+                            }
                             ExposedDropdownMenu(
                                 expanded = periodExpanded,
                                 onDismissRequest = { periodExpanded = false }
@@ -394,14 +421,24 @@ fun RoutineApp(
                         onExpandedChange = { expanded = !expanded },
                         modifier = Modifier.padding(bottom = 24.dp)
                     ) {
-                        OutlinedTextField(
-                            value = selectedQuery ?: if (searchMode == SearchMode.BY_TEACHER) "Select a teacher..." else "Select a class...",
-                            onValueChange = {},
-                            readOnly = true,
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                            modifier = Modifier.menuAnchor(),
-                            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
-                        )
+                        Surface(
+                            modifier = Modifier.menuAnchor().fillMaxWidth().height(56.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = selectedQuery ?: if (searchMode == SearchMode.BY_TEACHER) "Select a teacher..." else "Select a class...",
+                                    modifier = Modifier.weight(1f),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                            }
+                        }
                         ExposedDropdownMenu(
                             expanded = expanded,
                             onDismissRequest = { expanded = false }
