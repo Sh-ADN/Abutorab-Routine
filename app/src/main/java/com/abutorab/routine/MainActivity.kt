@@ -1,5 +1,7 @@
 package com.abutorab.routine
 
+import androidx.lifecycle.repeatOnLifecycle
+import androidx.lifecycle.Lifecycle
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -113,6 +115,13 @@ class MainActivity : ComponentActivity() {
         }
         installSplashScreen().setKeepOnScreenCondition { keepSplashScreen }
         super.onCreate(savedInstanceState)
+        
+        lifecycleScope.launch {
+            lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                viewModel.pollDataUpdates()
+            }
+        }
+
         enableEdgeToEdge()
         setContent {
             var darkTheme by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<Boolean?>(null) }

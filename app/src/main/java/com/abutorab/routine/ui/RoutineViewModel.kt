@@ -57,6 +57,29 @@ class RoutineViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    suspend fun pollDataUpdates() {
+        val cm = getApplication<Application>().getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+        while (true) {
+            kotlinx.coroutines.delay(5000L)
+            val actNw = cm.activeNetworkInfo
+            if (actNw != null && actNw.isConnected) {
+                val freshData = repository.fetchFreshData()
+                if (freshData != null) {
+                    teachers = repository.allTeachers
+                    val currentState = _uiState.value
+                    if (currentState is RoutineUiState.Success) {
+                        if (currentState.entries != freshData) {
+                            _uiState.value = RoutineUiState.Success(freshData)
+                        }
+                    } else {
+                        // If it was Error or Loading, just update to Success
+                        _uiState.value = RoutineUiState.Success(freshData)
+                    }
+                }
+            }
+        }
+    }
+
     fun setMode(mode: SearchMode) {
         _searchMode.value = mode
         _selectedQuery.value = null

@@ -158,6 +158,25 @@ class RoutineRepository(private val context: Context) {
         return parsedEntries
     }
 
+    suspend fun fetchFreshData(): List<RoutineEntry>? = withContext(Dispatchers.IO) {
+        try {
+            val response = RetrofitClient.api.getRoutine()
+            val parsedEntries = processResponse(response)
+            
+            allTeachers = response.teachers
+            try {
+                val adapter = RetrofitClient.moshi.adapter(DatabaseResponse::class.java)
+                val json = adapter.toJson(response)
+                prefs.edit().putString("cached_response", json).apply()
+            } catch (e: Exception) {
+                Log.e("RoutineRepository", "Failed to save cache", e)
+            }
+            parsedEntries
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     fun getRoutine(): Flow<List<RoutineEntry>> = flow {
         var hasCache = false
         val cacheJson = prefs.getString("cached_response", null)
