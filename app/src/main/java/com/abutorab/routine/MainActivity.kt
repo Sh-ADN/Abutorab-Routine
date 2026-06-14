@@ -54,6 +54,9 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material.icons.filled.Nightlight
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.Schedule
 
 data class PeriodHeader(val num: Int, val name: String, val time: String)
 
@@ -169,19 +172,19 @@ fun RoutineApp(
             FilterChip(
                 selected = searchMode == SearchMode.BY_TEACHER,
                 onClick = { viewModel.setMode(SearchMode.BY_TEACHER) },
-                label = { Text("By Teacher") },
+                label = { Text("👤 By Teacher") },
                 modifier = Modifier.padding(end = 8.dp)
             )
             FilterChip(
                 selected = searchMode == SearchMode.BY_CLASS,
                 onClick = { viewModel.setMode(SearchMode.BY_CLASS) },
-                label = { Text("By Class") },
+                label = { Text("🏫 By Class") },
                 modifier = Modifier.padding(end = 8.dp)
             )
             FilterChip(
                 selected = searchMode == SearchMode.BY_PERIOD,
                 onClick = { viewModel.setMode(SearchMode.BY_PERIOD) },
-                label = { Text("By Period") }
+                label = { Text("🕐 By Period") }
             )
         }
 
