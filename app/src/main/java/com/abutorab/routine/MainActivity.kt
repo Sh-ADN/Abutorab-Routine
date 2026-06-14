@@ -392,7 +392,7 @@ fun RoutineApp(
                         modifier = Modifier.padding(bottom = 24.dp)
                     ) {
                         OutlinedTextField(
-                            value = selectedQuery ?: "Select...",
+                            value = selectedQuery ?: if (searchMode == SearchMode.BY_TEACHER) "Select a teacher..." else "Select a class...",
                             onValueChange = {},
                             readOnly = true,
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
