@@ -542,7 +542,8 @@ fun RoutineTableWrapper(
 ) {
     var scale by remember { mutableFloatStateOf(1f) }
     var minScale by remember { mutableFloatStateOf(1f) }
-    var offset by remember { mutableStateOf(Offset.Zero) }
+    val offsetX = remember { androidx.compose.animation.core.Animatable(0f) }
+    val offsetY = remember { androidx.compose.animation.core.Animatable(0f) }
     var initialSetupDone by remember { mutableStateOf(false) }
     var tableSize by remember { mutableStateOf(androidx.compose.ui.unit.IntSize.Zero) }
     val coroutineScope = rememberCoroutineScope()
@@ -574,9 +575,10 @@ fun RoutineTableWrapper(
                                     val oldScale = scale
                                     scale = value
                                     val fraction = (scale / oldScale) - 1
-                                    val zoomOffset = (centroid - offset) * fraction
-                                    val proposedX = offset.x - zoomOffset.x
-                                    val proposedY = offset.y - zoomOffset.y
+                                    val zoomOffsetX = (centroid.x - offsetX.value) * fraction
+                                    val zoomOffsetY = (centroid.y - offsetY.value) * fraction
+                                    val proposedX = offsetX.value - zoomOffsetX
+                                    val proposedY = offsetY.value - zoomOffsetY
                                     
                                     val contentWidth = tableSize.width * scale
                                     val contentHeight = tableSize.height * scale
@@ -585,40 +587,67 @@ fun RoutineTableWrapper(
                                     val minY = minOf(0f, availableHeightPx - contentHeight)
                                     val maxY = 0f
 
-                                    offset = Offset(
-                                        proposedX.coerceIn(minX, maxX),
-                                        proposedY.coerceIn(minY, maxY)
-                                    )
+                                    coroutineScope.launch {
+                                        offsetX.snapTo(proposedX.coerceIn(minX, maxX))
+                                        offsetY.snapTo(proposedY.coerceIn(minY, maxY))
+                                    }
                                 }
                             }
                         }
                     )
                 }
                 .pointerInput(tableSize, availableWidthPx, availableHeightPx) {
-                    detectTransformGestures { centroid, pan, zoom, _ ->
-                        val oldScale = scale
-                        scale = (scale * zoom).coerceIn(minScale, 4f)
-                        
-                        // Keep the focus on the pinched point
-                        val fraction = (scale / oldScale) - 1
-                        val zoomOffset = (centroid - offset) * fraction
-                        
-                        val proposedX = offset.x + pan.x - zoomOffset.x
-                        val proposedY = offset.y + pan.y - zoomOffset.y
-                        
-                        val contentWidth = tableSize.width * scale
-                        val contentHeight = tableSize.height * scale
-                        
-                        val minX = minOf(0f, availableWidthPx - contentWidth)
-                        val maxX = 0f
-                        val minY = minOf(0f, availableHeightPx - contentHeight)
-                        val maxY = 0f
+                    val decay = androidx.compose.animation.splineBasedDecay<Float>(this)
+                    detectZoomPanFling(
+                        onGesture = { centroid, pan, zoom ->
+                            val oldScale = scale
+                            scale = (scale * zoom).coerceIn(minScale, 4f)
+                            
+                            val fraction = (scale / oldScale) - 1
+                            val zoomOffsetX = (centroid.x - offsetX.value) * fraction
+                            val zoomOffsetY = (centroid.y - offsetY.value) * fraction
+                            
+                            val proposedX = offsetX.value + pan.x - zoomOffsetX
+                            val proposedY = offsetY.value + pan.y - zoomOffsetY
+                            
+                            val contentWidth = tableSize.width * scale
+                            val contentHeight = tableSize.height * scale
+                            
+                            val minX = minOf(0f, availableWidthPx - contentWidth)
+                            val maxX = 0f
+                            val minY = minOf(0f, availableHeightPx - contentHeight)
+                            val maxY = 0f
 
-                        offset = Offset(
-                            proposedX.coerceIn(minX, maxX),
-                            proposedY.coerceIn(minY, maxY)
-                        )
-                    }
+                            coroutineScope.launch {
+                                offsetX.snapTo(proposedX.coerceIn(minX, maxX))
+                                offsetY.snapTo(proposedY.coerceIn(minY, maxY))
+                            }
+                        },
+                        onFling = { velocity ->
+                            val contentWidth = tableSize.width * scale
+                            val contentHeight = tableSize.height * scale
+                            val minX = minOf(0f, availableWidthPx - contentWidth)
+                            val maxX = 0f
+                            val minY = minOf(0f, availableHeightPx - contentHeight)
+                            val maxY = 0f
+
+                            offsetX.updateBounds(lowerBound = minX, upperBound = maxX)
+                            offsetY.updateBounds(lowerBound = minY, upperBound = maxY)
+
+                            coroutineScope.launch {
+                                offsetX.animateDecay(
+                                    initialVelocity = velocity.x,
+                                    animationSpec = decay
+                                )
+                            }
+                            coroutineScope.launch {
+                                offsetY.animateDecay(
+                                    initialVelocity = velocity.y,
+                                    animationSpec = decay
+                                )
+                            }
+                        }
+                    )
                 }
         ) {
             val desiredWidthDp = 900.dp
@@ -632,7 +661,10 @@ fun RoutineTableWrapper(
                 scale = ratio
                 minScale = ratio
                 // Start at top left initially
-                offset = Offset.Zero
+                coroutineScope.launch {
+                    offsetX.snapTo(0f)
+                    offsetY.snapTo(0f)
+                }
                 initialSetupDone = true
             }
 
@@ -641,8 +673,8 @@ fun RoutineTableWrapper(
                     .graphicsLayer {
                         scaleX = scale
                         scaleY = scale
-                        translationX = kotlin.math.round(offset.x)
-                        translationY = kotlin.math.round(offset.y)
+                        translationX = offsetX.value
+                        translationY = offsetY.value
                         transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0f)
                     }
                     .wrapContentSize(unbounded = true, align = Alignment.TopStart)
