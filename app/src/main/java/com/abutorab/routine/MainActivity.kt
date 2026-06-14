@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.geometry.Offset
@@ -543,6 +544,7 @@ fun RoutineTableWrapper(
     var offset by remember { mutableStateOf(Offset.Zero) }
     var initialSetupDone by remember { mutableStateOf(false) }
     var tableSize by remember { mutableStateOf(androidx.compose.ui.unit.IntSize.Zero) }
+    val coroutineScope = rememberCoroutineScope()
 
     BoxWithConstraints(
         modifier = modifier
@@ -557,6 +559,40 @@ fun RoutineTableWrapper(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .pointerInput(tableSize, availableWidthPx, availableHeightPx) {
+                    detectTapGestures(
+                        onDoubleTap = { centroid: Offset ->
+                            coroutineScope.launch {
+                                // Toggle between 1x and 2x zoom smoothly
+                                val targetScale = if (scale < 1.5f) 2.5f else 1f
+                                androidx.compose.animation.core.animate(
+                                    initialValue = scale,
+                                    targetValue = targetScale,
+                                    animationSpec = androidx.compose.animation.core.tween(300)
+                                ) { value, _ ->
+                                    val oldScale = scale
+                                    scale = value
+                                    val fraction = (scale / oldScale) - 1
+                                    val zoomOffset = (centroid - offset) * fraction
+                                    val proposedX = offset.x - zoomOffset.x
+                                    val proposedY = offset.y - zoomOffset.y
+                                    
+                                    val contentWidth = tableSize.width * scale
+                                    val contentHeight = tableSize.height * scale
+                                    val minX = minOf(0f, availableWidthPx - contentWidth)
+                                    val maxX = 0f
+                                    val minY = minOf(0f, availableHeightPx - contentHeight)
+                                    val maxY = 0f
+
+                                    offset = Offset(
+                                        proposedX.coerceIn(minX, maxX),
+                                        proposedY.coerceIn(minY, maxY)
+                                    )
+                                }
+                            }
+                        }
+                    )
+                }
                 .pointerInput(tableSize, availableWidthPx, availableHeightPx) {
                     detectTransformGestures { centroid, pan, zoom, _ ->
                         val oldScale = scale
