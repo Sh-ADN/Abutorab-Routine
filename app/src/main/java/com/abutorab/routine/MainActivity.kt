@@ -107,7 +107,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         var keepSplashScreen = true
         lifecycleScope.launch {
-            delay(1000)
+            delay(2000)
             keepSplashScreen = false
         }
         installSplashScreen().setKeepOnScreenCondition { keepSplashScreen }
@@ -422,7 +422,7 @@ fun RoutineApp(
                         modifier = Modifier.padding(bottom = 24.dp)
                     ) {
                         Surface(
-                            modifier = Modifier.menuAnchor().fillMaxWidth().height(56.dp),
+                            modifier = Modifier.menuAnchor().width(240.dp).height(56.dp),
                             shape = RoundedCornerShape(16.dp),
                             color = MaterialTheme.colorScheme.surfaceVariant,
                         ) {
