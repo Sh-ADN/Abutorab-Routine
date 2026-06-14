@@ -98,7 +98,6 @@ dependencies {
   implementation(libs.kotlinx.coroutines.android)
   implementation(libs.kotlinx.coroutines.core)
   implementation(libs.logging.interceptor)
-  implementation(libs.moshi.kotlin) { exclude(group = "org.jetbrains.kotlin", module = "kotlin-reflect") }
   implementation(libs.okhttp)
   // implementation(libs.play.services.location)
   implementation(libs.retrofit) { exclude(group = "org.jetbrains.kotlin", module = "kotlin-reflect") }
