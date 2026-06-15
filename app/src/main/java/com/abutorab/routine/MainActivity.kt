@@ -38,6 +38,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.hoverable
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawWithContent
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import com.abutorab.routine.data.RoutineEntry
@@ -155,7 +156,8 @@ fun RoutineApp(
     var previousMode by rememberSaveable { mutableStateOf<String?>(null) }
     var previousQuery by rememberSaveable { mutableStateOf<String?>(null) }
 
-    androidx.activity.compose.BackHandler(enabled = previousMode != null) {
+    val activity = androidx.compose.ui.platform.LocalContext.current as? android.app.Activity
+    androidx.activity.compose.BackHandler(enabled = true) {
         val modeStr = previousMode
         if (modeStr != null) {
             viewModel.setMode(SearchMode.valueOf(modeStr as String))
@@ -165,6 +167,8 @@ fun RoutineApp(
             }
             previousMode = null
             previousQuery = null
+        } else {
+            activity?.finish()
         }
     }
 
@@ -1120,11 +1124,27 @@ fun HeaderComponent(
                             .padding(end = 12.dp)
                     )
                     val textColor = if (isDarkTheme) Color(0xFFE2E8F0) else Color(0xFF34495E)
+                    val defaultStyle = MaterialTheme.typography.headlineSmall
+                    val textStyle = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(defaultStyle) }
+                    val readyToDraw = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
                             text = "Abutorab M.L. High School",
-                            style = MaterialTheme.typography.headlineSmall,
+                            style = textStyle.value,
                             fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            softWrap = false,
+                            onTextLayout = { textLayoutResult ->
+                                if (textLayoutResult.didOverflowWidth) {
+                                    textStyle.value = textStyle.value.copy(fontSize = textStyle.value.fontSize * 0.9f)
+                                } else {
+                                    readyToDraw.value = true
+                                }
+                            },
+                            modifier = Modifier.drawWithContent {
+                                if (readyToDraw.value) drawContent()
+                            },
                             textAlign = TextAlign.Center,
                             color = textColor
                         )
