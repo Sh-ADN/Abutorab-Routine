@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item
-        android:width="56dp"
-        android:height="56dp"
+        android:inset="22dp"
         android:drawable="@drawable/school_logo"
         android:gravity="center" />
 </layer-list>
