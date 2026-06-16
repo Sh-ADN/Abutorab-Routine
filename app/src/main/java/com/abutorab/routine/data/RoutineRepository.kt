@@ -99,7 +99,7 @@ class RoutineRepository(private val context: Context) {
 
     fun parseCell(cell: String, period: Int, teacher: String): List<RoutineEntry> {
         val results = mutableListOf<RoutineEntry>()
-        val parts = cell.split(",\n", " / ")
+        val parts = cell.split(Regex(",\\s*\\n| / "))
         var lastSubject = ""
         for (p in parts) {
             var str = p.trim()

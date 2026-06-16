@@ -2,21 +2,15 @@ package com.abutorab.routine
 
 import org.junit.Assert.*
 import org.junit.Test
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import java.io.IOException
+import java.util.regex.Pattern
 
 class ExampleUnitTest {
   @Test
   fun testApiFetch() {
-    val client = OkHttpClient.Builder().followRedirects(true).followSslRedirects(true).build()
-    val request = Request.Builder()
-        .url("https://script.google.com/macros/s/AKfycbzGUBlzXFJ_OS8cDTKOvEl4-7B1TMFYvF-n_RySMP61SnUOSTcmnWll5L6-fvNrabdmKw/exec?action=getFullDatabase")
-        .build()
-
-    val responseBody = client.newCall(request).execute().use { response ->
-        response.body?.string()
-    }
-    java.io.File("response.txt").writeText(responseBody ?: "null")
+    val cell = "F&B IX (2-4), \nBen-1 X-B (5-6)"
+    val parts = cell.split(Regex(",\\s*\\n| / "))
+    assertEquals(2, parts.size)
+    assertEquals("F&B IX (2-4)", parts[0])
+    assertEquals("Ben-1 X-B (5-6)", parts[1])
   }
 }
