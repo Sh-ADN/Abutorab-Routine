@@ -21,8 +21,6 @@ suspend fun PointerInputScope.detectZoomPanFling(
         
         do {
             val event = awaitPointerEvent()
-            val canceled = event.changes.any { it.isConsumed }
-            if (canceled) break
             
             val zoomChange = event.calculateZoom()
             val panChange = event.calculatePan()
