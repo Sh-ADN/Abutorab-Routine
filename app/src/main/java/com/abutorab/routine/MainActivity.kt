@@ -23,6 +23,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
@@ -523,10 +525,14 @@ fun RoutineApp(
                                 } else {
                                     RoutineTableWrapper(
                                         entries = relevantEntries,
+                                        allEntries = state.entries,
                                         mode = searchMode,
                                         query = currentQuery,
                                         modifier = Modifier.weight(1f)
                                     )
+                                    if (searchMode == SearchMode.BY_TEACHER) {
+                                        TeacherStatistics(entries = relevantEntries)
+                                    }
                                 }
                             }
                         } else {
@@ -550,6 +556,7 @@ fun RoutineApp(
 @Composable
 fun RoutineTableWrapper(
     entries: List<RoutineEntry>,
+    allEntries: List<RoutineEntry>,
     mode: SearchMode,
     query: String,
     modifier: Modifier = Modifier
@@ -571,11 +578,13 @@ fun RoutineTableWrapper(
         val availableHeightScope = maxHeight
         val availableWidthPx = constraints.maxWidth.toFloat()
         val availableHeightPx = constraints.maxHeight.toFloat()
+        val currentAvailableWidthPx by rememberUpdatedState(availableWidthPx)
+        val currentAvailableHeightPx by rememberUpdatedState(availableHeightPx)
         
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .pointerInput(tableSize, availableWidthPx, availableHeightPx) {
+                .pointerInput(Unit) {
                     detectTapGestures(
                         onDoubleTap = { centroid: Offset ->
                             coroutineScope.launch {
@@ -596,9 +605,9 @@ fun RoutineTableWrapper(
                                     
                                     val contentWidth = tableSize.width * scale
                                     val contentHeight = tableSize.height * scale
-                                    val minX = minOf(0f, availableWidthPx - contentWidth)
+                                    val minX = minOf(0f, currentAvailableWidthPx - contentWidth)
                                     val maxX = 0f
-                                    val minY = minOf(0f, availableHeightPx - contentHeight)
+                                    val minY = minOf(0f, currentAvailableHeightPx - contentHeight)
                                     val maxY = 0f
 
                                     coroutineScope.launch {
@@ -610,7 +619,7 @@ fun RoutineTableWrapper(
                         }
                     )
                 }
-                .pointerInput(tableSize, availableWidthPx, availableHeightPx) {
+                .pointerInput(Unit) {
                     val decay = androidx.compose.animation.splineBasedDecay<Float>(this)
                     detectZoomPanFling(
                         onGesture = { centroid, pan, zoom ->
@@ -627,9 +636,9 @@ fun RoutineTableWrapper(
                             val contentWidth = tableSize.width * scale
                             val contentHeight = tableSize.height * scale
                             
-                            val minX = minOf(0f, availableWidthPx - contentWidth)
+                            val minX = minOf(0f, currentAvailableWidthPx - contentWidth)
                             val maxX = 0f
-                            val minY = minOf(0f, availableHeightPx - contentHeight)
+                            val minY = minOf(0f, currentAvailableHeightPx - contentHeight)
                             val maxY = 0f
 
                             coroutineScope.launch {
@@ -640,9 +649,9 @@ fun RoutineTableWrapper(
                         onFling = { velocity ->
                             val contentWidth = tableSize.width * scale
                             val contentHeight = tableSize.height * scale
-                            val minX = minOf(0f, availableWidthPx - contentWidth)
+                            val minX = minOf(0f, currentAvailableWidthPx - contentWidth)
                             val maxX = 0f
-                            val minY = minOf(0f, availableHeightPx - contentHeight)
+                            val minY = minOf(0f, currentAvailableHeightPx - contentHeight)
                             val maxY = 0f
 
                             offsetX.updateBounds(lowerBound = minX, upperBound = maxX)
@@ -695,6 +704,7 @@ fun RoutineTableWrapper(
             ) {
                 RoutineTable(
                     entries = entries,
+                    allEntries = allEntries,
                     mode = mode,
                     query = query,
                     modifier = Modifier
@@ -711,6 +721,7 @@ data class PopupInfo(val day: Int, val period: Int, val classNames: List<String>
 @Composable
 fun RoutineTable(
     entries: List<RoutineEntry>,
+    allEntries: List<RoutineEntry>,
     mode: SearchMode,
     query: String,
     modifier: Modifier = Modifier
@@ -721,7 +732,10 @@ fun RoutineTable(
     if (popupInfo != null) {
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { popupInfo = null },
-            title = { Text("Adjacent Classes Details") },
+            title = {
+                val names = popupInfo!!.classNames
+                Text(if (names.size == 1) "Class ${names.first()}" else "Classes ${names.joinToString(", ")}")
+            },
             text = {
                 Column(modifier = Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState())) {
                     val info = popupInfo!!
@@ -730,39 +744,39 @@ fun RoutineTable(
                         val nextPeriod = if (info.period == 4 || info.period == 7) null else info.period + 1
                         
                         val prevEntries = prevPeriod?.let { p -> 
-                            entries.filter { it.day == info.day && it.period == p && (it.className == className || it.className.startsWith("$className-") || className.startsWith("${it.className}-")) } 
+                            allEntries.filter { it.day == info.day && it.period == p && (it.className == className || it.className.startsWith("$className-") || className.startsWith("${it.className}-")) } 
                         } ?: emptyList()
                         val nextEntries = nextPeriod?.let { p -> 
-                            entries.filter { it.day == info.day && it.period == p && (it.className == className || it.className.startsWith("$className-") || className.startsWith("${it.className}-")) } 
+                            allEntries.filter { it.day == info.day && it.period == p && (it.className == className || it.className.startsWith("$className-") || className.startsWith("${it.className}-")) } 
                         } ?: emptyList()
                         
-                        Text(className, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                        
-                        if (prevPeriod == null) {
-                            Text("Previous Period: None (Start of session)", style = MaterialTheme.typography.bodyMedium)
-                        } else if (prevEntries.isEmpty()) {
-                            Text("Previous Period ($prevPeriod): Free - N/A", style = MaterialTheme.typography.bodyMedium)
-                        } else {
-                            val texts = prevEntries.map { 
-                                val tName = it.teacher.takeIf { t -> t.isNotBlank() } ?: "Free"
-                                val sub = it.subject.takeIf { s -> s.isNotBlank() } ?: "N/A"
-                                "$tName - $sub" + if (it.className != className) " (${it.className})" else ""
-                            }.joinToString(", ")
-                            Text("Previous Period ($prevPeriod): $texts", style = MaterialTheme.typography.bodyMedium)
+                        if (info.classNames.size > 1) {
+                            Text(className, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(bottom = 8.dp, top = if (info.classNames.indexOf(className) > 0) 8.dp else 0.dp))
                         }
                         
-                        if (nextPeriod == null) {
-                            Text("Next Period: None (End of session)", style = MaterialTheme.typography.bodyMedium)
-                        } else if (nextEntries.isEmpty()) {
-                            Text("Next Period ($nextPeriod): Free - N/A", style = MaterialTheme.typography.bodyMedium)
-                        } else {
-                            val texts = nextEntries.map { 
-                                val tName = it.teacher.takeIf { t -> t.isNotBlank() } ?: "Free"
-                                val sub = it.subject.takeIf { s -> s.isNotBlank() } ?: "N/A"
-                                "$tName - $sub" + if (it.className != className) " (${it.className})" else ""
-                            }.joinToString(", ")
-                            Text("Next Period ($nextPeriod): $texts", style = MaterialTheme.typography.bodyMedium)
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                            if (prevPeriod != null) {
+                                AdjacentClassCard(
+                                    isNext = false,
+                                    entries = prevEntries,
+                                    mainClassName = className,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            } else {
+                                Spacer(modifier = Modifier.weight(1f))
+                            }
+                            if (nextPeriod != null) {
+                                AdjacentClassCard(
+                                    isNext = true,
+                                    entries = nextEntries,
+                                    mainClassName = className,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            } else {
+                                Spacer(modifier = Modifier.weight(1f))
+                            }
                         }
+                        
                         Spacer(modifier = Modifier.height(12.dp))
                     }
                 }
@@ -933,6 +947,65 @@ fun HeaderCell(text: String, width: androidx.compose.ui.unit.Dp, isTiffin: Boole
                     maxLines = 1,
                     softWrap = false
                 )
+            }
+        }
+    }
+}
+
+@Composable
+fun AdjacentClassCard(
+    isNext: Boolean,
+    entries: List<RoutineEntry>,
+    mainClassName: String,
+    modifier: Modifier = Modifier
+) {
+    androidx.compose.material3.Card(
+        modifier = modifier.padding(4.dp),
+        colors = androidx.compose.material3.CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        ),
+        elevation = androidx.compose.material3.CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(8.dp).fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (!isNext) {
+                    androidx.compose.material3.Icon(
+                        imageVector = Icons.Filled.ArrowBack,
+                        contentDescription = "Previous",
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                }
+                Text(if (isNext) "Next" else "Previous", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                if (isNext) {
+                    Spacer(modifier = Modifier.width(4.dp))
+                    androidx.compose.material3.Icon(
+                        imageVector = Icons.Filled.ArrowForward,
+                        contentDescription = "Next",
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            if (entries.isEmpty()) {
+                Text("Free", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                Text("-", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else {
+                entries.forEachIndexed { index, entry ->
+                    val tName = entry.teacher.takeIf { it.isNotBlank() } ?: "Free"
+                    val sub = entry.subject.takeIf { it.isNotBlank() } ?: "N/A"
+                    val displaySub = sub + if (entry.className != mainClassName) " (${entry.className})" else ""
+                    Text(tName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                    Text(displaySub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                    if (index < entries.size - 1) {
+                        androidx.compose.material3.HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp).fillMaxWidth(0.5f), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f))
+                    }
+                }
             }
         }
     }
