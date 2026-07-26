@@ -1,3 +1,4 @@
+cat << 'INNER_EOF' > app/src/main/java/com/abutorab/routine/TeacherStatistics.kt
 package com.abutorab.routine
 
 import androidx.compose.foundation.clickable
@@ -32,16 +33,7 @@ fun TeacherStatistics(entries: List<RoutineEntry>) {
     val minutes = totalMinutes % 60
     val totalTeachingHoursStr = "${hours}h ${minutes}m"
     val uniqueClasses = entries.map { it.className.split("-")[0].trim() }.distinct().size
-    val uniqueSubjects = entries.flatMap { entry ->
-        val subjectStr = entry.subject
-        val subjects = if (subjectStr.endsWith("-1 & 2")) {
-            val base = subjectStr.removeSuffix("-1 & 2")
-            listOf("$base-1", "$base-2")
-        } else {
-            listOf(subjectStr)
-        }
-        subjects.map { "${it}-${entry.className.trim()}" }
-    }.distinct().size
+    val uniqueSubjects = entries.map { "${it.subject}-${it.className.trim()}" }.distinct().size
 
     val daysCount = daysConfig.size
     val averageClasses = if (daysCount > 0) String.format(Locale.US, "%.1f", totalClasses.toFloat() / daysCount) else "0"
@@ -87,7 +79,7 @@ fun TeacherStatistics(entries: List<RoutineEntry>) {
                 Text("Teacher Statistics", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                 Spacer(modifier = Modifier.width(8.dp))
                 Icon(
-                    imageVector = if (expanded) Icons.Filled.ExpandMore else Icons.Filled.ExpandLess,
+                    imageVector = if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
                     contentDescription = if (expanded) "Collapse" else "Expand",
                     tint = MaterialTheme.colorScheme.primary
                 )
@@ -124,3 +116,4 @@ private fun StatRow(label: String, value: String) {
         Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
     }
 }
+INNER_EOF
