@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.geometry.Offset
@@ -705,6 +706,8 @@ fun RoutineTableWrapper(
     }
 }
 
+data class PopupInfo(val day: Int, val period: Int, val classNames: List<String>)
+
 @Composable
 fun RoutineTable(
     entries: List<RoutineEntry>,
@@ -713,6 +716,65 @@ fun RoutineTable(
     modifier: Modifier = Modifier
 ) {
     var currentTime by remember { mutableStateOf(Calendar.getInstance()) }
+    var popupInfo by remember { mutableStateOf<PopupInfo?>(null) }
+    
+    if (popupInfo != null) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { popupInfo = null },
+            title = { Text("Adjacent Classes Details") },
+            text = {
+                Column(modifier = Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState())) {
+                    val info = popupInfo!!
+                    info.classNames.forEach { className ->
+                        val prevPeriod = if (info.period == 1 || info.period == 5) null else info.period - 1
+                        val nextPeriod = if (info.period == 4 || info.period == 7) null else info.period + 1
+                        
+                        val prevEntries = prevPeriod?.let { p -> 
+                            entries.filter { it.day == info.day && it.period == p && (it.className == className || it.className.startsWith("$className-") || className.startsWith("${it.className}-")) } 
+                        } ?: emptyList()
+                        val nextEntries = nextPeriod?.let { p -> 
+                            entries.filter { it.day == info.day && it.period == p && (it.className == className || it.className.startsWith("$className-") || className.startsWith("${it.className}-")) } 
+                        } ?: emptyList()
+                        
+                        Text(className, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        
+                        if (prevPeriod == null) {
+                            Text("Previous Period: None (Start of session)", style = MaterialTheme.typography.bodyMedium)
+                        } else if (prevEntries.isEmpty()) {
+                            Text("Previous Period ($prevPeriod): Free - N/A", style = MaterialTheme.typography.bodyMedium)
+                        } else {
+                            val texts = prevEntries.map { 
+                                val tName = it.teacher.takeIf { t -> t.isNotBlank() } ?: "Free"
+                                val sub = it.subject.takeIf { s -> s.isNotBlank() } ?: "N/A"
+                                "$tName - $sub" + if (it.className != className) " (${it.className})" else ""
+                            }.joinToString(", ")
+                            Text("Previous Period ($prevPeriod): $texts", style = MaterialTheme.typography.bodyMedium)
+                        }
+                        
+                        if (nextPeriod == null) {
+                            Text("Next Period: None (End of session)", style = MaterialTheme.typography.bodyMedium)
+                        } else if (nextEntries.isEmpty()) {
+                            Text("Next Period ($nextPeriod): Free - N/A", style = MaterialTheme.typography.bodyMedium)
+                        } else {
+                            val texts = nextEntries.map { 
+                                val tName = it.teacher.takeIf { t -> t.isNotBlank() } ?: "Free"
+                                val sub = it.subject.takeIf { s -> s.isNotBlank() } ?: "N/A"
+                                "$tName - $sub" + if (it.className != className) " (${it.className})" else ""
+                            }.joinToString(", ")
+                            Text("Next Period ($nextPeriod): $texts", style = MaterialTheme.typography.bodyMedium)
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+                }
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = { popupInfo = null }) {
+                    Text("Close")
+                }
+            }
+        )
+    }
+
     LaunchedEffect(Unit) {
         while(isActive) {
             delay(10000L) // 10 seconds
@@ -795,7 +857,16 @@ fun RoutineTable(
                             val text = getCellText(entries, dayValue, p.num, mode, query)
                             val activeCell = activePeriod && isDayActive(dayValue)
                             val remMins = if (activeCell) getRemainingMins(p.time) else null
-                            Cell(text, 110.dp, isDark = false, height = 80.dp, isActive = activeCell, remainingMins = remMins)
+                            val onLongClick: (() -> Unit)? = if (mode == SearchMode.BY_TEACHER && text.isNotBlank() && text != "-") {
+                                {
+                                    val cellEntries = entries.filter { it.day == dayValue && it.period == p.num && it.teacher == query }
+                                    val classNames = cellEntries.map { it.className }.distinct()
+                                    if (classNames.isNotEmpty()) {
+                                        popupInfo = PopupInfo(dayValue, p.num, classNames)
+                                    }
+                                }
+                            } else null
+                            Cell(text, 110.dp, isDark = false, height = 80.dp, isActive = activeCell, remainingMins = remMins, onLongClick = onLongClick)
                         }
                     }
                 }
@@ -868,7 +939,7 @@ fun HeaderCell(text: String, width: androidx.compose.ui.unit.Dp, isTiffin: Boole
 }
 
 @Composable
-fun Cell(text: String, width: androidx.compose.ui.unit.Dp, isDark: Boolean, height: androidx.compose.ui.unit.Dp = 80.dp, isActive: Boolean = false, remainingMins: Int? = null) {
+fun Cell(text: String, width: androidx.compose.ui.unit.Dp, isDark: Boolean, height: androidx.compose.ui.unit.Dp = 80.dp, isActive: Boolean = false, remainingMins: Int? = null, onLongClick: (() -> Unit)? = null) {
     val baseBackgroundColor = when {
         isDark && isActive -> Color(0xFFC6E0F5) // Highlight day
         isActive -> Color(0xFFEAF2F8) // Highlight cell
@@ -901,6 +972,10 @@ fun Cell(text: String, width: androidx.compose.ui.unit.Dp, isDark: Boolean, heig
             .background(animatedBackgroundColor)
             .border(if (isActive) 1.5.dp else 0.5.dp, if (isActive) Color(0xFF3498DB) else Color(0xFFE0E0E0))
             .hoverable(interactionSource = interactionSource)
+            .then(
+                if (onLongClick != null) Modifier.pointerInput(Unit) { detectTapGestures(onLongPress = { onLongClick() }) }
+                else Modifier
+            )
             .padding(2.dp),
         contentAlignment = Alignment.Center
     ) {
